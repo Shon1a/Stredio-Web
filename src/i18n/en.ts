@@ -1,10 +1,14 @@
 /* English is the offline fallback dictionary — every key the UI can request
  * resolves here if the active language file (loaded from the translations CDN)
- * is missing that key. This is a Phase-1 SEED covering the shell + home chrome;
- * the full ~480-key table from the vanilla assets/js/i18n.js EN block gets
- * ported wholesale before cutover. Text mirrors the English defaults baked into
- * the current index.html so parity holds. */
-export const EN: Record<string, string> = {
+ * is missing that key.
+ *
+ * EN_BASE is the full 481-key canonical table auto-extracted from the vanilla
+ * assets/js/i18n.js (so keys align with the external stredio-translations repo).
+ * SEED below carries the React app's additional/renamed keys and overrides base
+ * where the wording was refined. Exported EN = { ...EN_BASE, ...SEED }. */
+import { EN_BASE } from './en-base';
+
+const SEED: Record<string, string> = {
   'brand.name': 'STREDIO',
 
   // primary nav (top strip + rail + drawer)
@@ -206,3 +210,5 @@ export const EN: Record<string, string> = {
 
   'common.loading': 'Loading…',
 };
+
+export const EN: Record<string, string> = { ...EN_BASE, ...SEED };

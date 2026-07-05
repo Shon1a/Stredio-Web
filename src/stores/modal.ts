@@ -1,0 +1,43 @@
+import { create } from 'zustand';
+import type { MediaItem } from '../lib/types';
+
+/* Which title's detail modal is open. `target` is the seed card data (for the
+ * instant placeholder + initial title/meta); the modal fetches full /api/meta on
+ * top. null → closed. Mirrors the vanilla openInfoModal(ds)/closeInfoModal flow. */
+
+export interface ModalTarget {
+  id: string | number;
+  type?: MediaItem['type'];
+  title?: string;
+  year?: string | number;
+  rating?: number;
+  genre?: string;
+  poster?: string;
+  seed?: number;
+}
+
+interface ModalState {
+  target: ModalTarget | null;
+  open: (t: ModalTarget) => void;
+  close: () => void;
+}
+
+export const useModal = create<ModalState>((set) => ({
+  target: null,
+  open: (target) => set({ target }),
+  close: () => set({ target: null }),
+}));
+
+/** Convenience: open the modal from a catalog MediaItem. */
+export function openItem(item: MediaItem, seed = 0): ModalTarget {
+  return {
+    id: item.id,
+    type: item.type,
+    title: item.title,
+    year: item.year,
+    rating: item.rating,
+    genre: item.genre,
+    poster: item.poster,
+    seed,
+  };
+}

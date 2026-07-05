@@ -5,6 +5,7 @@ import { HOME_ROWS } from '../lib/home';
 import Row from '../components/Row';
 import Hero from '../components/Hero';
 import UpcomingMarquee from '../components/UpcomingMarquee';
+import StudioRow from '../components/StudioRow';
 import { useModal, openItem } from '../stores/modal';
 import { useLibrary } from '../stores/library';
 import type { MediaItem } from '../lib/types';
@@ -63,6 +64,8 @@ export default function Home() {
               />
             );
           })}
+          {/* Studios logo row — after the category/provider rows, as in the vanilla layout */}
+          <StudioRow onOpen={(key) => nav(`/browse/studio:${key}`)} />
         </div>
       </div>
     </section>

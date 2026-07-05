@@ -1,8 +1,9 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useT } from '../i18n/i18n';
 import { useModal, openItem } from '../stores/modal';
-import { HOME_ROWS } from '../lib/home';
+import { HOME_ROWS, STUDIOS } from '../lib/home';
 import CatalogGrid from '../components/CatalogGrid';
+import type { GridDesc } from '../lib/grid';
 import type { MediaItem } from '../lib/types';
 
 /* Browse drill-down — the full paginated grid for one category, reached from a
@@ -27,7 +28,13 @@ export default function Browse({ cat: catProp }: { cat?: string }) {
   const params = useParams();
   const openModal = useModal((s) => s.open);
   const cat = catProp || params.cat || 'trending_movie';
-  const title = titleFor(cat, t);
+  // studio drill-down: cat === "studio:<key>"
+  const isStudio = cat.startsWith('studio:');
+  const studioKey = isStudio ? cat.slice('studio:'.length) : '';
+  const title = isStudio ? (STUDIOS.find((s) => s.key === studioKey)?.name || studioKey) : titleFor(cat, t);
+  const desc: GridDesc = isStudio
+    ? { kind: 'studio', studio: studioKey, title }
+    : { kind: 'category', cat, title };
   const onSelect = (item: MediaItem) => openModal(openItem(item));
 
   return (
@@ -39,7 +46,7 @@ export default function Browse({ cat: catProp }: { cat?: string }) {
           </button>
           <h2 className="cat-title display" id="catTitle" tabIndex={-1}>{title}</h2>
         </div>
-        <CatalogGrid desc={{ kind: 'category', cat, title }} host="cat" onSelect={onSelect} />
+        <CatalogGrid desc={desc} host="cat" onSelect={onSelect} />
       </div>
     </section>
   );

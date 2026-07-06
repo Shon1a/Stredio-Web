@@ -337,7 +337,7 @@ export default function VideoPlayer() {
         onPlaying={() => setLoading(false)}
         onCanPlay={() => setLoading(false)}
         onVolumeChange={(e) => { setVol(e.currentTarget.volume); setMuted(e.currentTarget.muted); }}
-        onEnded={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); if (settings.autoplayNext && source.next) source.next(); }}
       >
         {vtt.map((s, i) => (
           <track key={i} kind="subtitles" src={s.url} srcLang={s.lang} label={s.label} />
@@ -474,6 +474,13 @@ export default function VideoPlayer() {
           </div>
         </div>
       </div>
+
+      {/* Next-episode button — appears near the end for a series with a next episode */}
+      {source.next && (
+        <button className={`vp-skip${dur > 0 && cur > dur - 40 ? ' show' : ''}`} id="vpSkip" type="button" onClick={() => source.next?.()}>
+          {t('player.next_episode')} ›
+        </button>
+      )}
     </div>
   );
 }

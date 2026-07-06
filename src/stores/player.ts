@@ -36,6 +36,7 @@ export interface PlaySource {
   subtitle?: string;      // shown under the title (e.g. "S1 · E1 — The Heirs of the Dragon")
   subtitles?: SubtitleTrack[];
   media?: PlayMedia;      // for history + resume
+  next?: () => void;      // play the next episode (series) — used by auto-play-next + the Next button
 }
 
 interface PlayerState {

@@ -177,7 +177,7 @@ const SEED: Record<string, string> = {
   'addons.install': 'Install',
   'addons.installed': 'Installed',
   'addons.none': 'No community add-ons yet.',
-  'addons.sync_note': 'Sign in (Phase 5) to sync add-ons across devices.',
+  'addons.sync_note': 'Signed in? Your add-ons sync across your devices.',
 
   // auth
   'auth.kicker': '// sign in to manage add-ons & settings',

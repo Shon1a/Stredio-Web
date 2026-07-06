@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './stores/auth';
+import { useAddons } from './stores/addons';
 import AppShell from './layout/AppShell';
 import Home from './routes/Home';
 import Explore from './routes/Explore';
@@ -19,7 +20,11 @@ import AuthModal from './components/AuthModal';
 export default function App() {
   const refresh = useAuth((s) => s.refresh);
   const loadConfig = useAuth((s) => s.loadConfig);
+  const user = useAuth((s) => s.user);
+  const pullAddons = useAddons((s) => s.pullFromServer);
   useEffect(() => { refresh(); loadConfig(); }, [refresh, loadConfig]);
+  // merge the server-stored add-on collection whenever a user becomes signed in
+  useEffect(() => { if (user) pullAddons(); }, [user, pullAddons]);
 
   return (
     <HashRouter>

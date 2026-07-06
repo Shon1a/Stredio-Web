@@ -22,7 +22,7 @@ function EpCard({ ep, season, active, onPick }: { ep: Episode; season: number; a
   );
 }
 
-export default function EpisodeChooser({ meta, onEpisode }: { meta: MetaDetail; onEpisode?: (season: number, ep: number) => void }) {
+export default function EpisodeChooser({ meta, initial, onEpisode }: { meta: MetaDetail; initial?: { season: number; episode: number }; onEpisode?: (season: number, ep: number) => void }) {
   const t = useT();
 
   const seasons: SeasonInfo[] = useMemo(() => {
@@ -31,10 +31,11 @@ export default function EpisodeChooser({ meta, onEpisode }: { meta: MetaDetail; 
     return [];
   }, [meta.seasonList, meta.seasons]);
 
-  // default to the first real season (skip a season-0 "Specials" block)
+  // default to the resume season (from Continue Watching) if any, else the first real
+  // season (skipping a season-0 "Specials" block)
   const firstSeason = useMemo(() => (seasons.find((s) => s.season >= 1) || seasons[0])?.season, [seasons]);
-  const [activeSeason, setActiveSeason] = useState<number | undefined>(firstSeason);
-  const [activeEp, setActiveEp] = useState<number | null>(null);
+  const [activeSeason, setActiveSeason] = useState<number | undefined>(initial?.season ?? firstSeason);
+  const [activeEp, setActiveEp] = useState<number | null>(initial?.episode ?? null);
 
   const season = activeSeason ?? firstSeason;
   const { data, isLoading } = useSeason(meta.id, season);

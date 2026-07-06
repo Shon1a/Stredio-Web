@@ -129,7 +129,11 @@ const SEED: Record<string, string> = {
   'ctl.subtitles': 'Subtitles',
   'ctl.auto': 'Auto',
   'ctl.off': 'Off',
+  'ctl.on': 'On',
   'ctl.normal': 'Normal',
+  'ctl.enhance': 'Picture enhance',
+  'ctl.grain': 'Grain',
+  'ctl.clarity': 'Clarity',
 
   // discover / search / grid
   'search.ph': 'Search titles, people, genres…',

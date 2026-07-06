@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePlayer } from '../../stores/player';
 import { useHistory } from '../../stores/history';
+import { useSettings } from '../../stores/settings';
 import { useT } from '../../i18n/i18n';
 import { loadHls, isHlsUrl, type HlsInstance } from '../../lib/hls';
 
@@ -48,6 +49,9 @@ export default function VideoPlayer() {
   const putProgress = useHistory((s) => s.putProgress);
   const getResume = useHistory((s) => s.getResume);
   const flush = useHistory((s) => s.flush);
+  const settings = useSettings((s) => s.settings);
+  const updateSettings = useSettings((s) => s.update);
+  const kernelRef = useRef<SVGFEConvolveMatrixElement>(null);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -69,7 +73,7 @@ export default function VideoPlayer() {
   const [curLevel, setCurLevel] = useState(-1);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuView, setMenuView] = useState<'main' | 'speed' | 'quality' | 'subs'>('main');
+  const [menuView, setMenuView] = useState<'main' | 'speed' | 'quality' | 'subs' | 'enhance'>('main');
   const [ccOn, setCcOn] = useState(false);
   const [fs, setFs] = useState(false);
   const [hideUi, setHideUi] = useState(false);
@@ -177,6 +181,15 @@ export default function VideoPlayer() {
     return () => { window.removeEventListener('keydown', onKey); document.removeEventListener('fullscreenchange', onFs); };
   }, [source, close, togglePlay, nudge, toggleMute, toggleFs, bump]);
 
+  // picture-enhance: rewrite the unsharp-mask convolution kernel from the clarity
+  // slider (identity at 0 → 3×3 Laplacian sharpen at 1; energy-preserving so it
+  // doesn't shift brightness)
+  useEffect(() => {
+    const k = kernelRef.current; if (!k) return;
+    const c = settings.clarity;
+    k.setAttribute('kernelMatrix', `0 ${-c} 0 ${-c} ${1 + 4 * c} ${-c} 0 ${-c} 0`);
+  }, [settings.clarity]);
+
   if (!source) return <div className="vp-overlay" id="playerOverlay" />;
 
   const pct = dur ? (cur / dur) * 100 : 0;
@@ -185,17 +198,25 @@ export default function VideoPlayer() {
 
   return (
     <div
-      className={`vp-overlay open${hideUi ? ' hide-ui' : ''}`}
+      className={`vp-overlay open${hideUi ? ' hide-ui' : ''}${settings.enhance ? ' enhance-on' : ''}`}
       id="playerOverlay"
       ref={overlayRef}
+      style={{ ['--grain' as string]: settings.enhance ? settings.grain : 0 }}
       onPointerMove={bump}
       onClick={(e) => { if (e.target === videoRef.current) togglePlay(); }}
     >
+      {/* unsharp-mask filter for the Clarity control (kernel rewritten live above) */}
+      <svg aria-hidden="true" width="0" height="0" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
+        <filter id="vpSharpen" colorInterpolationFilters="sRGB">
+          <feConvolveMatrix ref={kernelRef} order="3" preserveAlpha="true" kernelMatrix="0 0 0 0 1 0 0 0 0" />
+        </filter>
+      </svg>
       <video
         id="playerVideo"
         ref={videoRef}
         playsInline
         crossOrigin="anonymous"
+        style={{ filter: settings.enhance && settings.clarity > 0 ? 'url(#vpSharpen)' : undefined }}
         onLoadedMetadata={(e) => {
           const v = e.currentTarget;
           setDur(v.duration || 0);
@@ -294,6 +315,7 @@ export default function VideoPlayer() {
                     {levels.length > 0 && (
                       <button className="vp-menu-row" role="menuitem" onClick={() => setMenuView('quality')}><span>{t('ctl.quality')}</span><span className="vp-menu-val">{curLevel < 0 ? t('ctl.auto') : `${levels.find((l) => l.i === curLevel)?.height ?? ''}p`}</span></button>
                     )}
+                    <button className="vp-menu-row" role="menuitem" onClick={() => setMenuView('enhance')}><span>{t('ctl.enhance')}</span><span className="vp-menu-val">{settings.enhance ? t('ctl.on') : t('ctl.off')}</span></button>
                   </>
                 )}
                 {menuView === 'speed' && SPEEDS.map((r) => (
@@ -305,6 +327,23 @@ export default function VideoPlayer() {
                     {levels.map((l) => (
                       <button key={l.i} className={`vp-menu-row${l.i === curLevel ? ' on' : ''}`} role="menuitemradio" aria-checked={l.i === curLevel} onClick={() => setLevel(l.i)}>{l.height ? `${l.height}p` : `Level ${l.i + 1}`}</button>
                     ))}
+                  </>
+                )}
+                {menuView === 'enhance' && (
+                  <>
+                    <button className={`vp-menu-row${settings.enhance ? ' on' : ''}`} role="menuitemcheckbox" aria-checked={settings.enhance} onClick={() => updateSettings({ enhance: !settings.enhance })}>
+                      <span>{t('ctl.enhance')}</span><span className="vp-menu-val">{settings.enhance ? t('ctl.on') : t('ctl.off')}</span>
+                    </button>
+                    <div className={`vp-enh-slider${settings.enhance ? '' : ' off'}`}>
+                      <span style={{ fontSize: 12 }}>{t('ctl.grain')}</span>
+                      <input type="range" min={0} max={0.35} step={0.01} value={settings.grain} disabled={!settings.enhance} onChange={(e) => updateSettings({ grain: +e.target.value })} aria-label={t('ctl.grain')} />
+                      <span className="vp-enh-val">{Math.round(settings.grain * 100)}</span>
+                    </div>
+                    <div className={`vp-enh-slider${settings.enhance ? '' : ' off'}`}>
+                      <span style={{ fontSize: 12 }}>{t('ctl.clarity')}</span>
+                      <input type="range" min={0} max={1} step={0.05} value={settings.clarity} disabled={!settings.enhance} onChange={(e) => updateSettings({ clarity: +e.target.value })} aria-label={t('ctl.clarity')} />
+                      <span className="vp-enh-val">{Math.round(settings.clarity * 100)}</span>
+                    </div>
                   </>
                 )}
               </div>

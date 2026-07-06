@@ -14,6 +14,8 @@ export interface ModalTarget {
   genre?: string;
   poster?: string;
   seed?: number;
+  /** when reopened from Continue Watching for a series, the episode to resume */
+  resumeEp?: { season: number; episode: number };
 }
 
 interface ModalState {

@@ -125,8 +125,13 @@ export default function DetailModal() {
   const { data: meta } = useMeta(target?.id, target?.type);
   const { muted, toggleMute } = useTrailer(slotRef, heroRef, meta?.trailerKey || undefined, meta?.title || target?.title || '');
 
-  // reset backdrop fade + episode pick + scroll position on each new title
-  useEffect(() => { setBdLoaded(false); setPickedEp(null); scrollRef.current?.scrollTo({ top: 0 }); }, [target?.id]);
+  // reset backdrop fade + scroll on each new title; seed the picked episode from a
+  // Continue-Watching resume so OPEN builds the exact-episode key (id:S#E#)
+  useEffect(() => {
+    setBdLoaded(false);
+    setPickedEp(target?.resumeEp ? { season: target.resumeEp.season, ep: target.resumeEp.episode } : null);
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [target?.id, target?.resumeEp?.season, target?.resumeEp?.episode]);
 
   // close the modal when the route changes (navigating away dismisses it)
   const { pathname } = useLocation();
@@ -236,7 +241,7 @@ export default function DetailModal() {
               {meta?.tagline && <div className="m-tagline" id="mTagline">{meta.tagline}</div>}
               <p className="plot m-plot" id="mPlot">{plot}</p>
 
-              {isTv && meta && <EpisodeChooser meta={meta} onEpisode={(season, ep) => setPickedEp({ season, ep })} />}
+              {isTv && meta && <EpisodeChooser meta={meta} initial={target.resumeEp} onEpisode={(season, ep) => setPickedEp({ season, ep })} />}
 
               <div className="m-streams">
                 <div className="m-rail-head">

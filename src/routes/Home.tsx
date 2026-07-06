@@ -8,6 +8,7 @@ import Hero from '../components/Hero';
 import UpcomingMarquee from '../components/UpcomingMarquee';
 import StudioRow from '../components/StudioRow';
 import ContinueRow from '../components/ContinueRow';
+import AddonRows from '../components/AddonRows';
 import { useModal, openItem } from '../stores/modal';
 import { useLibrary } from '../stores/library';
 import type { MediaItem } from '../lib/types';
@@ -72,6 +73,8 @@ export default function Home() {
           })}
           {/* Studios logo row — after the category/provider rows, as in the vanilla layout */}
           {config.studios && <StudioRow onOpen={(key) => nav(`/browse/studio:${key}`)} />}
+          {/* rows supplied by installed community catalog add-ons */}
+          <AddonRows onSelect={onSelect} />
         </div>
       </div>
     </section>

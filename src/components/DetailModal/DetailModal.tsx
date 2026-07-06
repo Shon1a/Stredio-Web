@@ -9,6 +9,9 @@ import { hueBg } from '../../lib/img';
 import type { MetaDetail, MediaItem, CastMember } from '../../lib/types';
 import { useTrailer } from './useTrailer';
 import EpisodeChooser from './EpisodeChooser';
+import { collectAddonStreams, type AddonStream } from '../../lib/addonClient';
+
+const qualClass = (q: string) => (q === '4K' ? 'q-4k' : q === '1080p' ? 'q-1080' : 'q-720');
 
 /* Detail modal — faithful port of the #overlay markup + openInfoModal/enrichModalMeta/
  * renderCast/renderRecs (assets/js/app.js). Seeded from the clicked card for an instant
@@ -120,6 +123,8 @@ export default function DetailModal() {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const [bdLoaded, setBdLoaded] = useState(false);
   const [pickedEp, setPickedEp] = useState<{ season: number; ep: number } | null>(null);
+  const [streams, setStreams] = useState<AddonStream[]>([]);
+  const [streamsLoading, setStreamsLoading] = useState(false);
 
   const isTv = target?.type === 'tv' || target?.type === 'series';
   const { data: meta } = useMeta(target?.id, target?.type);
@@ -132,6 +137,22 @@ export default function DetailModal() {
     setPickedEp(target?.resumeEp ? { season: target.resumeEp.season, ep: target.resumeEp.episode } : null);
     scrollRef.current?.scrollTo({ top: 0 });
   }, [target?.id, target?.resumeEp?.season, target?.resumeEp?.episode]);
+
+  // client-direct add-on streams: ask every installed stream add-on for this title's
+  // sources (movie → tt…; series → tt…:season:episode, once an episode is picked)
+  useEffect(() => {
+    const imdb = meta?.imdb;
+    if (!imdb) { setStreams([]); return; }
+    if (isTv && !pickedEp) { setStreams([]); return; }
+    const videoId = isTv && pickedEp ? `${imdb}:${pickedEp.season}:${pickedEp.ep}` : imdb;
+    const type = isTv ? 'series' : 'movie';
+    let alive = true;
+    setStreamsLoading(true); setStreams([]);
+    collectAddonStreams(videoId, type)
+      .then((s) => { if (alive) setStreams(s); })
+      .finally(() => { if (alive) setStreamsLoading(false); });
+    return () => { alive = false; };
+  }, [meta?.imdb, isTv, pickedEp]);
 
   // close the modal when the route changes (navigating away dismisses it)
   const { pathname } = useLocation();
@@ -158,6 +179,23 @@ export default function DetailModal() {
   const epTotal = (meta?.seasonList ?? []).reduce((a, s) => a + (s.episodes || 0), 0);
   const added = mylist.some((m) => String(m.id) === String(target.id));
   const onAdd = () => toggleList({ id: target.id, type: target.type, title, year, rating, poster: meta?.poster || target.poster });
+
+  const buildMedia = () => {
+    const key = pickedEp ? `${target.id}:S${pickedEp.season}E${pickedEp.ep}` : String(target.id);
+    return { id: target.id, key, title, poster: meta?.poster || target.poster, year, type: target.type, genre: target.genre, rating, ep: pickedEp ? `S${pickedEp.season}E${pickedEp.ep}` : undefined, season: pickedEp?.season ?? null, episode: pickedEp?.ep ?? null };
+  };
+  const playStream = (s: AddonStream) => playSource({
+    url: s.url, kind: s.kind, title,
+    subtitle: pickedEp ? `S${pickedEp.season} · E${pickedEp.ep}` : undefined,
+    media: buildMedia(),
+    subtitles: s.subtitles?.map((x) => ({ lang: x.lang, label: x.lang || 'Subtitle', url: x.url })),
+  });
+  // OPEN plays the first available add-on stream; falls back to the bundled demo when
+  // no stream add-on is installed / returns nothing.
+  const onOpen = () => {
+    if (streams.length) playStream(streams[0]);
+    else playSource({ url: '/assets/demo.mp4', title, subtitle: pickedEp ? `S${pickedEp.season} · E${pickedEp.ep}` : undefined, media: buildMedia() });
+  };
 
   return (
     <div
@@ -208,26 +246,7 @@ export default function DetailModal() {
                 {genreChips.map((g) => <span className="chip" key={g}>{genre(g)}</span>)}
               </div>
               <div className="m-hero-actions">
-                <button
-                  className="hero-btn hero-play"
-                  id="mWatch"
-                  type="button"
-                  onClick={() => {
-                    const key = pickedEp ? `${target.id}:S${pickedEp.season}E${pickedEp.ep}` : String(target.id);
-                    playSource({
-                      // Phase 4 feeds real add-on stream URLs here; demo stream for now.
-                      url: '/assets/demo.mp4',
-                      title,
-                      subtitle: pickedEp ? `S${pickedEp.season} · E${pickedEp.ep}` : undefined,
-                      media: {
-                        id: target.id, key, title, poster: meta?.poster || target.poster,
-                        year, type: target.type, genre: target.genre, rating,
-                        ep: pickedEp ? `S${pickedEp.season}E${pickedEp.ep}` : undefined,
-                        season: pickedEp?.season ?? null, episode: pickedEp?.ep ?? null,
-                      },
-                    });
-                  }}
-                >
+                <button className="hero-btn hero-play" id="mWatch" type="button" onClick={onOpen}>
                   <span className="ic" aria-hidden="true">▶</span><span>{t('modal.watch')}</span>
                 </button>
                 <button className={`hero-add m-disc${added ? ' on' : ''}`} id="mAdd" type="button" aria-pressed={added} aria-label={t(added ? 'mylist.remove' : 'mylist.add')} onClick={onAdd}>{added ? '✓' : '+'}</button>
@@ -248,8 +267,24 @@ export default function DetailModal() {
                   <h4 className="m-rail-label">{t('modal.streams')}</h4>
                 </div>
                 <div id="streamList">
-                  {/* Phase 4: real add-on streams (client-direct). */}
-                  <div className="demo-note">{t(isTv && !pickedEp ? 'modal.pick_episode' : 'modal.no_streams')}</div>
+                  {isTv && !pickedEp ? (
+                    <div className="demo-note">{t('modal.pick_episode')}</div>
+                  ) : streamsLoading ? (
+                    <div className="stream-source-label">{t('modal.loading_synopsis')}</div>
+                  ) : streams.length ? (
+                    streams.map((s, i) => (
+                      <button className="addon-stream" type="button" key={i} aria-label={s.label} onClick={() => playStream(s)}>
+                        <span className={`quality-badge ${qualClass(s.quality)}`}>{s.quality || 'SD'}</span>
+                        <span className="stream-info">
+                          <span className="stream-title">{s.label}</span>
+                          <span className="stream-detail">{[s.size, s.source].filter(Boolean).join(' · ')}</span>
+                        </span>
+                        <span className="addon-stream-chevron" aria-hidden="true">›</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="demo-note">{t('modal.no_streams')}</div>
+                  )}
                 </div>
               </div>
             </div>

@@ -12,12 +12,30 @@ export interface SubtitleTrack {
   url: string;
 }
 
+/* Identity of the title being played — lets the player record watch history and
+ * resume progress against a stable media key (movie id, or `${id}:S#E#` for a
+ * series episode). */
+export interface PlayMedia {
+  id: string | number;
+  key: string;
+  title?: string;
+  poster?: string;
+  year?: string | number;
+  type?: 'movie' | 'tv' | 'series';
+  genre?: string;
+  rating?: number;
+  season?: number | null;
+  episode?: number | null;
+  ep?: string; // display label e.g. "S1E1"
+}
+
 export interface PlaySource {
   url: string;
   kind?: 'hls' | 'url';
   title?: string;
   subtitle?: string;      // shown under the title (e.g. "S1 · E1 — The Heirs of the Dragon")
   subtitles?: SubtitleTrack[];
+  media?: PlayMedia;      // for history + resume
 }
 
 interface PlayerState {

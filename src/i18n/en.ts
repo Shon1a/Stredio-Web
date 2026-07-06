@@ -154,6 +154,9 @@ const SEED: Record<string, string> = {
   'explore.results': 'Results for “{q}”',
   'explore.trending': 'Trending now',
 
+  // continue watching
+  'sec.continue': 'Continue Watching',
+
   // my space / my list
   'mylist.empty': 'Your list is empty. Add titles with the + button.',
   'myspace.my_list': 'My List',

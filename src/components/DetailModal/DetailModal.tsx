@@ -207,12 +207,21 @@ export default function DetailModal() {
                   className="hero-btn hero-play"
                   id="mWatch"
                   type="button"
-                  onClick={() => playSource({
-                    // Phase 4 feeds real add-on stream URLs here; demo stream for now.
-                    url: '/assets/demo.mp4',
-                    title,
-                    subtitle: pickedEp ? `S${pickedEp.season} · E${pickedEp.ep}` : undefined,
-                  })}
+                  onClick={() => {
+                    const key = pickedEp ? `${target.id}:S${pickedEp.season}E${pickedEp.ep}` : String(target.id);
+                    playSource({
+                      // Phase 4 feeds real add-on stream URLs here; demo stream for now.
+                      url: '/assets/demo.mp4',
+                      title,
+                      subtitle: pickedEp ? `S${pickedEp.season} · E${pickedEp.ep}` : undefined,
+                      media: {
+                        id: target.id, key, title, poster: meta?.poster || target.poster,
+                        year, type: target.type, genre: target.genre, rating,
+                        ep: pickedEp ? `S${pickedEp.season}E${pickedEp.ep}` : undefined,
+                        season: pickedEp?.season ?? null, episode: pickedEp?.ep ?? null,
+                      },
+                    });
+                  }}
                 >
                   <span className="ic" aria-hidden="true">▶</span><span>{t('modal.watch')}</span>
                 </button>

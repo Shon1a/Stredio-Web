@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './stores/auth';
 import { useAddons } from './stores/addons';
+import { useHistory } from './stores/history';
 import AppShell from './layout/AppShell';
 import Home from './routes/Home';
 import Explore from './routes/Explore';
@@ -22,9 +23,15 @@ export default function App() {
   const loadConfig = useAuth((s) => s.loadConfig);
   const user = useAuth((s) => s.user);
   const pullAddons = useAddons((s) => s.pullFromServer);
+  const reloadHistory = useHistory((s) => s.reload);
+  const pullHistory = useHistory((s) => s.pull);
   useEffect(() => { refresh(); loadConfig(); }, [refresh, loadConfig]);
-  // merge the server-stored add-on collection whenever a user becomes signed in
-  useEffect(() => { if (user) pullAddons(); }, [user, pullAddons]);
+  // on sign-in/out the localStorage namespace (per-email) changes → reload, then
+  // merge the server-stored add-on collection + watch history when signed in
+  useEffect(() => {
+    reloadHistory();
+    if (user) { pullAddons(); pullHistory(); }
+  }, [user, pullAddons, reloadHistory, pullHistory]);
 
   return (
     <HashRouter>

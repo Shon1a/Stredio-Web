@@ -1,0 +1,163 @@
+import { create } from 'zustand';
+import { apiFetch } from '../lib/api';
+import { useAuth } from './auth';
+
+/* Continue Watching: watch history + resume progress + removal tombstones —
+ * faithful port of the vanilla store (assets/js/app.js:630–785).
+ *
+ * localStorage is the instant, offline-safe source of truth, namespaced by the
+ * signed-in email (so two accounts on one browser don't mix). When signed in it
+ * also syncs to /api/library-state: PULL on sign-in + tab focus (merge by
+ * recency), PUSH throttled to ~once/25s (gentle on the DB free tier). A per-account
+ * tombstone map stops a title removed on one device resurrecting from another. */
+
+export interface WatchEntry {
+  id: string | number;
+  title?: string; poster?: string; year?: string | number;
+  type?: 'movie' | 'tv' | 'series'; genre?: string; rating?: number;
+  ep?: string; key?: string; at: number;
+  season?: number | null; episode?: number | null;
+}
+export interface Progress { pos: number; dur: number; at: number }
+
+const HISTORY_CAP = 60, PROGRESS_CAP = 240, PUSH_MS = 25000, PULL_MIN = 15000;
+const PROGRESS_DONE = 0.94;
+
+const email = () => useAuth.getState().user?.email || 'guest';
+const authed = () => !!useAuth.getState().user;
+const hKey = () => 'sf:history:' + email();
+const pKey = () => 'sf:progress:' + email();
+const rKey = () => 'sf:removed:' + email();
+
+function readJSON<T>(k: string, fb: T): T { try { return JSON.parse(localStorage.getItem(k) || '') as T; } catch { return fb; } }
+function writeJSON(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* quota */ } }
+
+// ---- merge helpers (ported verbatim in behaviour) ----
+function mergeHist(a: WatchEntry[], b: WatchEntry[], tomb: Record<string, number>): WatchEntry[] {
+  const m = new Map<string, WatchEntry>();
+  for (const e of [...(a || []), ...(b || [])]) {
+    if (!e || e.id == null) continue;
+    const id = String(e.id), p = m.get(id);
+    if (!p || (+e.at || 0) > (+p.at || 0)) m.set(id, e);
+  }
+  return [...m.values()]
+    .filter((e) => { const t = tomb[String(e.id)]; return !(t && t >= (+e.at || 0)); })
+    .sort((x, y) => (+y.at || 0) - (+x.at || 0))
+    .slice(0, HISTORY_CAP);
+}
+function mergeProg(a: Record<string, Progress>, b: Record<string, Progress>): Record<string, Progress> {
+  const out: Record<string, Progress> = {}, A = a || {}, B = b || {};
+  for (const k of new Set([...Object.keys(A), ...Object.keys(B)])) {
+    const x = A[k], y = B[k];
+    out[k] = (!x || (y && (+y.at || 0) >= (+x.at || 0))) ? (y || x) : x;
+  }
+  const keys = Object.keys(out).sort((p, q) => (+out[q].at || 0) - (+out[p].at || 0)).slice(0, PROGRESS_CAP);
+  const capped: Record<string, Progress> = {};
+  for (const k of keys) capped[k] = out[k];
+  return capped;
+}
+function mergeTomb(a: Record<string, number>, b: Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = {}, now = Date.now(), TTL = 30 * 24 * 3600 * 1000;
+  for (const src of [a || {}, b || {}]) for (const id of Object.keys(src)) { const at = +src[id] || 0; if (at > (out[id] || 0)) out[id] = at; }
+  for (const id of Object.keys(out)) if (now - out[id] > TTL) delete out[id];
+  return out;
+}
+
+let pushTimer: number | undefined;
+let pushPending = false;
+let lastPull = 0;
+
+interface HistoryState {
+  history: WatchEntry[];
+  progress: Record<string, Progress>;
+  removed: Record<string, number>;
+  reload: () => void;
+  record: (m: Omit<WatchEntry, 'at'>) => void;
+  putProgress: (key: string, pos: number, dur: number) => void;
+  getResume: (key: string) => Progress | null;
+  remove: (id: string | number) => void;
+  pull: () => Promise<void>;
+  flush: (keepalive?: boolean) => void;
+}
+
+export const useHistory = create<HistoryState>((set, get) => {
+  const persist = () => { writeJSON(hKey(), get().history); writeJSON(pKey(), get().progress); writeJSON(rKey(), get().removed); };
+
+  const pushNow = (keepalive?: boolean) => {
+    if (pushTimer) { clearTimeout(pushTimer); pushTimer = undefined; }
+    pushPending = false;
+    if (!authed()) return;
+    const body = JSON.stringify({ history: get().history, progress: get().progress, removed: get().removed });
+    apiFetch('/api/library-state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body, keepalive: !!keepalive }).catch(() => {});
+  };
+  const schedulePush = () => { if (!authed()) return; pushPending = true; if (!pushTimer) pushTimer = window.setTimeout(() => pushNow(false), PUSH_MS); };
+
+  return {
+    history: readJSON(hKey(), [] as WatchEntry[]),
+    progress: readJSON(pKey(), {} as Record<string, Progress>),
+    removed: readJSON(rKey(), {} as Record<string, number>),
+
+    reload: () => set({ history: readJSON(hKey(), []), progress: readJSON(pKey(), {}), removed: readJSON(rKey(), {}) }),
+
+    record: (m) => {
+      if (!authed()) return; // history is a signed-in feature (matches vanilla)
+      const list = get().history.filter((x) => String(x.id) !== String(m.id)); // float existing to top
+      list.unshift({ ...m, at: Date.now() });
+      const removed = { ...get().removed };
+      if (removed[String(m.id)]) delete removed[String(m.id)]; // re-watch clears its tombstone
+      set({ history: list.slice(0, HISTORY_CAP), removed });
+      persist(); schedulePush();
+    },
+
+    putProgress: (key, pos, dur) => {
+      if (!key || !(pos > 0)) return;
+      const map = { ...get().progress };
+      map[key] = { pos: Math.round(pos), dur: Math.round(dur || 0), at: Date.now() };
+      const keys = Object.keys(map);
+      if (keys.length > PROGRESS_CAP) keys.sort((a, b) => (map[b].at || 0) - (map[a].at || 0)).slice(PROGRESS_CAP).forEach((k) => delete map[k]);
+      set({ progress: map });
+      writeJSON(pKey(), map);
+      schedulePush();
+    },
+
+    getResume: (key) => {
+      const p = key ? get().progress[key] : null;
+      if (!p || !(p.dur > 0)) return null;
+      const pct = p.pos / p.dur;
+      if (pct < 0.01 || pct > PROGRESS_DONE) return null;
+      return p;
+    },
+
+    remove: (id) => {
+      const removed = { ...get().removed, [String(id)]: Date.now() };
+      set({ removed, history: get().history.filter((x) => String(x.id) !== String(id)) });
+      persist(); pushNow();
+    },
+
+    pull: async () => {
+      if (!authed()) return;
+      try {
+        const r = await apiFetch('/api/library-state');
+        if (!r.ok) return;
+        const remote = await r.json() as { history?: WatchEntry[]; progress?: Record<string, Progress>; removed?: Record<string, number> };
+        const tomb = mergeTomb(get().removed, remote.removed || {});
+        const history = mergeHist(get().history, remote.history || [], tomb);
+        const progress = mergeProg(get().progress, remote.progress || {});
+        set({ history, progress, removed: tomb });
+        persist();
+        lastPull = Date.now();
+      } catch { /* offline — keep local */ }
+    },
+
+    flush: (keepalive) => { if (pushPending) pushNow(keepalive); },
+  };
+});
+
+/* Global sync triggers (registered once): re-pull on tab focus / visibility (rate-
+ * limited) and flush a pending push before the page goes away. */
+if (typeof window !== 'undefined') {
+  const maybePull = () => { const s = useHistory.getState(); if (useAuth.getState().user && Date.now() - lastPull > PULL_MIN) s.pull(); };
+  window.addEventListener('visibilitychange', () => { if (!document.hidden) maybePull(); });
+  window.addEventListener('focus', maybePull);
+  window.addEventListener('pagehide', () => useHistory.getState().flush(true));
+}

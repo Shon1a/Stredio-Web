@@ -6,6 +6,7 @@ import Row from '../components/Row';
 import Hero from '../components/Hero';
 import UpcomingMarquee from '../components/UpcomingMarquee';
 import StudioRow from '../components/StudioRow';
+import ContinueRow from '../components/ContinueRow';
 import { useModal, openItem } from '../stores/modal';
 import { useLibrary } from '../stores/library';
 import type { MediaItem } from '../lib/types';
@@ -48,7 +49,7 @@ export default function Home() {
       <div id="home">
         {heroItems.length > 0 && <Hero items={heroItems} onPlay={onSelect} onAdd={onAdd} />}
         <UpcomingMarquee movies={upMovies} series={upSeries} onSelect={onSelect} onSeeAll={onSeeAll} />
-        {/* #continueRow (Continue Watching) slots here in Phase 5 (needs auth) */}
+        <ContinueRow onSelect={onSelect} />
         <div id="strips">
           {HOME_ROWS.map((row) => {
             const list = (rows[row.cat]?.results ?? []).filter((m) => m.poster);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePlayer } from '../../stores/player';
+import { useHistory } from '../../stores/history';
 import { useT } from '../../i18n/i18n';
 import { loadHls, isHlsUrl, type HlsInstance } from '../../lib/hls';
 
@@ -43,12 +44,19 @@ export default function VideoPlayer() {
   const t = useT();
   const source = usePlayer((s) => s.source);
   const close = usePlayer((s) => s.close);
+  const record = useHistory((s) => s.record);
+  const putProgress = useHistory((s) => s.putProgress);
+  const getResume = useHistory((s) => s.getResume);
+  const flush = useHistory((s) => s.flush);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const hideTimer = useRef<number | undefined>(undefined);
+  const recordedRef = useRef(false);   // record watch-history once per opened source
+  const lastProgRef = useRef(0);       // throttle progress writes
+  const resumedRef = useRef(false);    // seek-to-resume once per source
 
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
@@ -71,6 +79,7 @@ export default function VideoPlayer() {
     const v = videoRef.current;
     if (!v || !source) return;
     let cancelled = false;
+    recordedRef.current = false; resumedRef.current = false; lastProgRef.current = 0;
     setLoading(true); setPlaying(false); setCur(0); setDur(0); setBuffered(0); setLevels([]); setCurLevel(-1); setMenuOpen(false); setMenuView('main');
     const url = source.url;
     const nativeHls = v.canPlayType('application/vnd.apple.mpegurl');
@@ -99,10 +108,11 @@ export default function VideoPlayer() {
 
     return () => {
       cancelled = true;
+      flush(); // persist any pending resume-progress when the source changes / player closes
       if (hlsRef.current) { try { hlsRef.current.destroy(); } catch { /* ignore */ } hlsRef.current = null; }
       try { v.removeAttribute('src'); v.load(); } catch { /* ignore */ }
     };
-  }, [source]);
+  }, [source, flush]);
 
   const bump = useCallback(() => {
     setHideUi(false);
@@ -185,10 +195,35 @@ export default function VideoPlayer() {
         ref={videoRef}
         playsInline
         crossOrigin="anonymous"
-        onLoadedMetadata={(e) => setDur(e.currentTarget.duration || 0)}
-        onTimeUpdate={(e) => setCur(e.currentTarget.currentTime)}
+        onLoadedMetadata={(e) => {
+          const v = e.currentTarget;
+          setDur(v.duration || 0);
+          // resume where we left off (once), if there's saved progress for this title
+          if (!resumedRef.current && source.media?.key) {
+            resumedRef.current = true;
+            const r = getResume(source.media.key);
+            if (r && r.pos > 0 && r.pos < (v.duration || Infinity)) v.currentTime = r.pos;
+          }
+        }}
+        onTimeUpdate={(e) => {
+          const v = e.currentTarget;
+          setCur(v.currentTime);
+          // throttle resume-progress writes to ~once/5s
+          const now = v.currentTime;
+          if (source.media?.key && v.currentTime > 8 && Math.abs(now - lastProgRef.current) >= 5) {
+            lastProgRef.current = now;
+            putProgress(source.media.key, v.currentTime, v.duration || 0);
+          }
+        }}
         onProgress={(e) => { const v = e.currentTarget; if (v.buffered.length) setBuffered(v.buffered.end(v.buffered.length - 1)); }}
-        onPlay={() => { setPlaying(true); bump(); }}
+        onPlay={() => {
+          setPlaying(true); bump();
+          if (!recordedRef.current && source.media) {
+            recordedRef.current = true;
+            const m = source.media;
+            record({ id: m.id, title: m.title, poster: m.poster, year: m.year, type: m.type, genre: m.genre, rating: m.rating, ep: m.ep, key: m.key, season: m.season, episode: m.episode });
+          }
+        }}
         onPause={() => { setPlaying(false); setHideUi(false); }}
         onWaiting={() => setLoading(true)}
         onPlaying={() => setLoading(false)}

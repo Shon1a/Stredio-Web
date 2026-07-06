@@ -9,7 +9,8 @@ import { hueBg } from '../../lib/img';
 import type { MetaDetail, MediaItem, CastMember } from '../../lib/types';
 import { useTrailer } from './useTrailer';
 import EpisodeChooser from './EpisodeChooser';
-import { collectAddonStreams, type AddonStream } from '../../lib/addonClient';
+import StreamLangSelect from './StreamLangSelect';
+import { collectAddonStreams, orderLangs, qualityRank, type AddonStream } from '../../lib/addonClient';
 
 const qualClass = (q: string) => (q === '4K' ? 'q-4k' : q === '1080p' ? 'q-1080' : 'q-720');
 
@@ -126,6 +127,7 @@ export default function DetailModal() {
   const [pickedEp, setPickedEp] = useState<{ season: number; ep: number } | null>(null);
   const [streams, setStreams] = useState<AddonStream[]>([]);
   const [streamsLoading, setStreamsLoading] = useState(false);
+  const [lang, setLang] = useState<string>('');
 
   const isTv = target?.type === 'tv' || target?.type === 'series';
   const { data: meta } = useMeta(target?.id, target?.type);
@@ -154,6 +156,12 @@ export default function DetailModal() {
       .finally(() => { if (alive) setStreamsLoading(false); });
     return () => { alive = false; };
   }, [meta?.imdb, isTv, pickedEp]);
+
+  // default the language bucket to the first available whenever the sources change
+  useEffect(() => {
+    const langs = orderLangs(streams.flatMap((s) => s.langs));
+    setLang((cur) => (langs.includes(cur) ? cur : (langs[0] || '')));
+  }, [streams]);
 
   // picking an episode brings its freshly-loaded sources into view (matches vanilla)
   useEffect(() => { if (pickedEp) streamsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [pickedEp]);
@@ -194,10 +202,18 @@ export default function DetailModal() {
     media: buildMedia(),
     subtitles: s.subtitles?.map((x) => ({ lang: x.lang, label: x.lang || 'Subtitle', url: x.url })),
   });
-  // OPEN plays the first available add-on stream; falls back to the bundled demo when
-  // no stream add-on is installed / returns nothing.
+  // language buckets (from the sources) + the sources for the picked language, sorted
+  // best-quality first
+  const availableLangs = orderLangs(streams.flatMap((s) => s.langs));
+  const shownStreams = streams
+    .filter((s) => !lang || s.langs.includes(lang))
+    .sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality));
+
+  // OPEN plays the top source for the current language; falls back to the bundled demo
+  // when no stream add-on is installed / returns nothing.
   const onOpen = () => {
-    if (streams.length) playStream(streams[0]);
+    if (shownStreams.length) playStream(shownStreams[0]);
+    else if (streams.length) playStream(streams[0]);
     else playSource({ url: '/assets/demo.mp4', title, subtitle: pickedEp ? `S${pickedEp.season} · E${pickedEp.ep}` : undefined, media: buildMedia() });
   };
 
@@ -269,14 +285,15 @@ export default function DetailModal() {
               <div className="m-streams" ref={streamsRef}>
                 <div className="m-rail-head">
                   <h4 className="m-rail-label">{t('modal.streams')}</h4>
+                  {availableLangs.length > 0 && <StreamLangSelect langs={availableLangs} value={lang} onChange={setLang} />}
                 </div>
                 <div id="streamList">
                   {isTv && !pickedEp ? (
                     <div className="demo-note">{t('modal.pick_episode')}</div>
                   ) : streamsLoading ? (
                     <div className="stream-source-label">{t('modal.loading_synopsis')}</div>
-                  ) : streams.length ? (
-                    streams.map((s, i) => (
+                  ) : shownStreams.length ? (
+                    shownStreams.map((s, i) => (
                       <button className="addon-stream" type="button" key={i} aria-label={s.label} onClick={() => playStream(s)}>
                         <span className={`quality-badge ${qualClass(s.quality)}`}>{s.quality || 'SD'}</span>
                         <span className="stream-info">

@@ -18,6 +18,28 @@ export interface AddonStream {
   subtitles?: Array<{ url: string; lang: string }>;
 }
 
+/* Display name for a stream/audio language code. Falls back to the uppercased code
+ * so a language an add-on returns is never dropped. */
+const LANG_NAME: Record<string, string> = {
+  en: 'English', ka: 'ქართული', uk: 'Українська', ru: 'Русский', es: 'Español',
+  fr: 'Français', de: 'Deutsch', it: 'Italiano', pt: 'Português', ja: '日本語',
+  ko: '한국어', zh: '中文', ar: 'العربية', hi: 'हिन्दी', tr: 'Türkçe', pl: 'Polski', nl: 'Nederlands',
+};
+export const langName = (c: string): string => LANG_NAME[c] || c.toUpperCase();
+
+/* Preferred display order for the language tabs; anything else sorts after, alphabetically. */
+const LANG_ORDER = ['en', 'ka', 'ru', 'uk'];
+export function orderLangs(langs: string[]): string[] {
+  return [...new Set(langs)].sort((a, b) => {
+    const ia = LANG_ORDER.indexOf(a), ib = LANG_ORDER.indexOf(b);
+    if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    return a.localeCompare(b);
+  });
+}
+
+const QRANK: Record<string, number> = { '4K': 4, '1080p': 3, '720p': 2, '480p': 1 };
+export const qualityRank = (q: string): number => QRANK[q] ?? 0;
+
 const installed = (): AddonRecord[] => useAddons.getState().installed;
 
 export function addonBaseUrl(manifestUrl: string): string {

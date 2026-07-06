@@ -80,7 +80,7 @@ export default function VideoPlayer() {
     if (!v || !source) return;
     let cancelled = false;
     recordedRef.current = false; resumedRef.current = false; lastProgRef.current = 0;
-    setLoading(true); setPlaying(false); setCur(0); setDur(0); setBuffered(0); setLevels([]); setCurLevel(-1); setMenuOpen(false); setMenuView('main');
+    setLoading(true); setPlaying(false); setCur(0); setDur(0); setBuffered(0); setLevels([]); setCurLevel(-1); setMenuOpen(false); setMenuView('main'); setHideUi(false);
     const url = source.url;
     const nativeHls = v.canPlayType('application/vnd.apple.mpegurl');
     const useHls = (source.kind === 'hls' || isHlsUrl(url)) && !nativeHls;
@@ -108,6 +108,7 @@ export default function VideoPlayer() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(hideTimer.current); // don't let a pending auto-hide fire into the next open
       flush(); // persist any pending resume-progress when the source changes / player closes
       if (hlsRef.current) { try { hlsRef.current.destroy(); } catch { /* ignore */ } hlsRef.current = null; }
       try { v.removeAttribute('src'); v.load(); } catch { /* ignore */ }

@@ -10,7 +10,7 @@ import { ApiError } from '../lib/api';
 
 const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 const passOk = (p: string) => p.length >= 8 && /[a-zA-Z]/.test(p) && /\d/.test(p);
-const ageOk = (dob: string) => { if (!dob) return false; const d = new Date(dob); const now = new Date('2026-07-05'); const age = (now.getTime() - d.getTime()) / (365.25 * 864e5); return age >= 13; };
+const ageOk = (dob: string) => { if (!dob) return false; const d = new Date(dob); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 13; };
 
 // minimal shape of the Google Identity Services we use
 type GsiId = { initialize: (o: unknown) => void; renderButton: (el: HTMLElement, o: unknown) => void };

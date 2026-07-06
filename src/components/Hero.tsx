@@ -119,8 +119,11 @@ export default function Hero({ items, onPlay, onAdd }: HeroProps) {
         <button className="hero-thumb-arrow r" type="button" tabIndex={-1} aria-label={t('ui.scroll_right')} onClick={() => ctrl.current.go(ctrl.current.i + 1)}>›</button>
       </div>
     );
+    // t included so the nav-strip aria labels re-localize on language switch (this is a
+    // static strip, unlike trackEl which must NOT re-render — that's why only trackEl
+    // keeps the [slides]-only dep)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slides]);
+  }, [slides, t]);
 
   // ---- the imperative engine ----
   useEffect(() => {

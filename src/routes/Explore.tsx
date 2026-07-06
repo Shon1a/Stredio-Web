@@ -59,6 +59,8 @@ export default function Explore() {
           value={raw} onChange={(e) => setRaw(e.target.value)}
         />
         <button className="filter-toggle" id="filterToggle" aria-expanded={filterOpen} aria-controls="filterPanel" title="Filters" aria-label="Toggle filters" onClick={() => setFilterOpen((v) => !v)}>☰</button>
+        <span className="mono" aria-hidden="true">{'⚲'}</span>
+        <span className="mono" aria-hidden="true">{'⏎'}</span>
 
         <div className={`filter-panel${filterOpen ? ' open' : ''}`} id="filterPanel">
           <div className="fp-row">

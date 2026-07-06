@@ -124,7 +124,8 @@ export default function AuthModal() {
           </div>
           {err && <div className="auth-error" role="alert">{err}</div>}
           <button className="auth-submit" type="submit" disabled={busy}>
-            <span className="auth-submit-label">{busy ? t('common.loading') : t(mode === 'login' ? 'auth.login_cta' : 'auth.signup_cta')}</span>
+            <span className="auth-submit-label">{t(mode === 'login' ? 'auth.login_cta' : 'auth.signup_cta')}</span>
+            {busy && <span className="auth-submit-spin spinner" aria-hidden="true" />}
           </button>
         </form>
 

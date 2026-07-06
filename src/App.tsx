@@ -10,7 +10,8 @@ import Browse from './routes/Browse';
 import Library from './routes/Library';
 import Addons from './routes/Addons';
 import Settings from './routes/Settings';
-import Placeholder from './routes/Placeholder';
+import Legal from './routes/Legal';
+import Terms from './routes/Terms';
 import DetailModal from './components/DetailModal/DetailModal';
 import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 import AuthModal from './components/AuthModal';
@@ -50,8 +51,8 @@ export default function App() {
           <Route path="addons" element={<Addons />} />
           <Route path="settings" element={<Settings />} />
           {/* public footer pages */}
-          <Route path="legal" element={<Placeholder name="Legal" phase="Phase 1" />} />
-          <Route path="terms" element={<Placeholder name="Terms" phase="Phase 1" />} />
+          <Route path="legal" element={<Legal />} />
+          <Route path="terms" element={<Terms />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

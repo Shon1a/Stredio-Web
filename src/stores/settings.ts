@@ -7,15 +7,46 @@ import { create } from 'zustand';
 const KEY = 'stredio.settings.v1';
 
 export interface Settings {
-  autoplayNext: boolean;
-  subSize: number;       // % of base subtitle size
+  // interface
   blurUnwatched: boolean;
-  enhance: boolean;      // picture-enhance (film-grain dither + unsharp clarity)
-  grain: number;         // 0–0.35 grain overlay opacity
-  clarity: number;       // 0–1 unsharp-mask strength
+  // auto-play
+  autoplayNext: boolean;
+  nextPopup: number;          // seconds the next-video popup stays up
+  // subtitles
+  subLang: 'off' | 'en' | 'ka' | 'ru';
+  subSize: number;            // % of base subtitle size
+  subColor: string;
+  subBg: string;
+  subOutline: string;
+  subOutlineW: number;
+  // playback preferences
+  autoQuality: 'best' | '4k' | '1080';
+  audioLang: 'en' | 'original';
+  // advanced
+  externalPlayer: 'disabled' | 'vlc' | 'infuse' | 'outplayer' | 'nplayer';
+  // picture-enhance (player)
+  enhance: boolean;
+  grain: number;              // 0–0.35 grain overlay opacity
+  clarity: number;            // 0–1 unsharp-mask strength
 }
 
-const DEFAULTS: Settings = { autoplayNext: true, subSize: 100, blurUnwatched: false, enhance: false, grain: 0.10, clarity: 0.40 };
+const DEFAULTS: Settings = {
+  blurUnwatched: false,
+  autoplayNext: true,
+  nextPopup: 15,
+  subLang: 'off',
+  subSize: 100,
+  subColor: '#ffffff',
+  subBg: 'rgba(0,0,0,.6)',
+  subOutline: '#000000',
+  subOutlineW: 2,
+  autoQuality: 'best',
+  audioLang: 'en',
+  externalPlayer: 'disabled',
+  enhance: false,
+  grain: 0.10,
+  clarity: 0.40,
+};
 
 function load(): Settings {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { ...DEFAULTS }; }

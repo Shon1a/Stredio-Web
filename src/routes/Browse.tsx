@@ -41,13 +41,14 @@ export default function Browse({ cat: catProp, topLevel }: { cat?: string; topLe
   const onSelect = (item: MediaItem) => openModal(openItem(item));
 
   if (topLevel) {
-    // primary rail destination — the same .grid as the vanilla virtual pages, just
-    // with a section title instead of the drill-down cat-head + Back button
+    // primary rail destination — render under the #explore scope so the cards get the
+    // SAME explore-grid size + spacing as the Search page (that sizing is CSS-scoped to
+    // #explore). A plain section title, no drill-down cat-head / Back button.
     return (
-      <section className="page active" id="browse" aria-label={title}>
-        <div id="catview">
-          <h2 className="cat-title display" style={{ marginBottom: 22 }}>{title}</h2>
-          <CatalogGrid desc={desc} host="cat" onSelect={onSelect} />
+      <section className="page active" id="explore" aria-label={title}>
+        <h2 className="section-title display" style={{ padding: '0 var(--page-pad)' }}>{title}</h2>
+        <div className="explore-body">
+          <CatalogGrid desc={desc} host="explore" onSelect={onSelect} />
         </div>
       </section>
     );

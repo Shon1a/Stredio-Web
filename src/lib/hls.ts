@@ -11,8 +11,11 @@ export interface HlsInstance {
   attachMedia(el: HTMLVideoElement): void;
   destroy(): void;
   on(event: string, cb: (...args: unknown[]) => void): void;
-  levels: Array<{ height?: number; bitrate?: number }>;
+  levels: Array<{ height?: number; width?: number; bitrate?: number }>;
   currentLevel: number;
+  autoLevelEnabled: boolean;
+  audioTracks: Array<{ name?: string; lang?: string }>;
+  audioTrack: number;
   subtitleTracks: unknown[];
 }
 

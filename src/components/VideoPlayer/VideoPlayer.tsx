@@ -6,6 +6,22 @@ import { useT } from '../../i18n/i18n';
 import { loadHls, isHlsUrl, type HlsInstance } from '../../lib/hls';
 import { toVttBlobUrl } from '../../lib/subtitles';
 
+// friendly name for an HLS audio rendition + a snapped quality label (matches vanilla)
+const AUDIO_NAMES: Record<string, string> = { eng: 'English', en: 'English', rus: 'Russian', ru: 'Russian', ka: 'ქართული', kat: 'ქართული', geo: 'ქართული', ukr: 'Ukrainian', uk: 'Ukrainian', tur: 'Turkish', fre: 'French', fr: 'French', ger: 'German', de: 'German', ita: 'Italian', jpn: 'Japanese', ja: 'Japanese', kor: 'Korean', spa: 'Spanish', es: 'Spanish' };
+function audioName(a: { name?: string; lang?: string }, i: number): string { return a.name || AUDIO_NAMES[(a.lang || '').toLowerCase()] || a.lang || `Track ${i + 1}`; }
+function levelLabel(l: { height?: number; width?: number; bitrate?: number }): string {
+  const eq = Math.max(l.height || 0, l.width ? Math.round((l.width * 9) / 16) : 0);
+  if (eq >= 1900) return '2160p'; if (eq >= 1300) return '1440p'; if (eq >= 900) return '1080p';
+  if (eq >= 650) return '720p'; if (eq >= 400) return '480p'; if (eq >= 300) return '360p';
+  if (eq > 0) return '240p'; return l.bitrate ? Math.round(l.bitrate / 1000) + 'k' : '?';
+}
+function applyAudioPref(hls: HlsInstance, pref: string) {
+  if (!pref || pref === 'original') return;
+  const re = new RegExp(pref, 'i');
+  const i = hls.audioTracks.findIndex((a) => re.test((a.name || '') + ' ' + (a.lang || '')));
+  if (i >= 0 && hls.audioTrack !== i) { try { hls.audioTrack = i; } catch { /* ignore */ } }
+}
+
 /* Core video player — reproduces the #playerOverlay markup/classes (so app.css
  * styles it) with HLS.js + native playback and the essential controls: play/pause,
  * scrubber (buffered + played + tooltip), ±10s, volume/mute, time, speed, quality
@@ -31,7 +47,19 @@ const IcGear = <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColo
 const IcPip = <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M3 5h18v14H3V5zm2 2v10h14V7H5zm6 4h7v5h-7v-5z" /></svg>;
 const IcFs = <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M4 9V4h5v2H6v3H4zm11-5h5v5h-2V6h-3V4zM6 15v3h3v2H4v-5h2zm12 0h2v5h-5v-2h3v-3z" /></svg>;
 
-const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
+// each menu section's collapsible gear-header icon + a single checkable option row
+const AccIc = <svg className="vp-acc-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
+
+function OptRow({ on, label, sub, onClick }: { on: boolean; label: string; sub?: string; onClick: () => void }) {
+  return (
+    <div className={`vp-opt${on ? ' on' : ''}`} role="menuitemradio" aria-checked={on} tabIndex={0}
+      onClick={onClick} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}>
+      <span className="ck">{on ? '✓' : ''}</span>{label}{sub ? <span className="sub">{sub}</span> : null}
+    </div>
+  );
+}
 
 function fmt(s: number): string {
   if (!isFinite(s) || s < 0) s = 0;
@@ -74,11 +102,14 @@ export default function VideoPlayer() {
   const [curLevel, setCurLevel] = useState(-1);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuView, setMenuView] = useState<'main' | 'speed' | 'quality' | 'subs' | 'enhance'>('main');
-  const [ccOn, setCcOn] = useState(false);
+  const [currentSub, setCurrentSub] = useState(-1); // -1 = subtitles off
+  const [audioTracks, setAudioTracks] = useState<Array<{ i: number; name: string }>>([]);
+  const [curAudio, setCurAudio] = useState(0);
+  const [acc, setAcc] = useState<Record<string, boolean>>({}); // expanded accordion sections
   const [fs, setFs] = useState(false);
   const [hideUi, setHideUi] = useState(false);
   const [vtt, setVtt] = useState<Array<{ lang: string; label: string; url: string }>>([]);
+  const ccOn = currentSub >= 0;
 
   // attach the source (HLS via hls.js, else native)
   useEffect(() => {
@@ -86,7 +117,7 @@ export default function VideoPlayer() {
     if (!v || !source) return;
     let cancelled = false;
     recordedRef.current = false; resumedRef.current = false; lastProgRef.current = 0;
-    setLoading(true); setPlaying(false); setCur(0); setDur(0); setBuffered(0); setLevels([]); setCurLevel(-1); setMenuOpen(false); setMenuView('main'); setHideUi(false);
+    setLoading(true); setPlaying(false); setCur(0); setDur(0); setBuffered(0); setLevels([]); setCurLevel(-1); setMenuOpen(false); setHideUi(false); setAudioTracks([]); setCurAudio(0);
     const url = source.url;
     const nativeHls = v.canPlayType('application/vnd.apple.mpegurl');
     const useHls = (source.kind === 'hls' || isHlsUrl(url)) && !nativeHls;
@@ -109,9 +140,19 @@ export default function VideoPlayer() {
               hls.levels.forEach((l, i) => { const h = l.height ?? 0; if (h <= want && h > bestH) { bestH = h; best = i; } });
               if (best >= 0) hls.currentLevel = best;
             }
+            // audio renditions + preferred audio language
+            if (hls.audioTracks && hls.audioTracks.length > 1) {
+              applyAudioPref(hls, settings.audioLang);
+              setAudioTracks(hls.audioTracks.map((a, i) => ({ i, name: audioName(a, i) })));
+              setCurAudio(hls.audioTrack);
+            }
             v.play().catch(() => {});
           });
           hls.on('hlsLevelSwitched', () => setCurLevel(hls.currentLevel));
+          hls.on('hlsAudioTrackSwitched', () => setCurAudio(hls.audioTrack));
+          hls.on('hlsAudioTracksUpdated', () => {
+            if (hls.audioTracks && hls.audioTracks.length > 1) { setAudioTracks(hls.audioTracks.map((a, i) => ({ i, name: audioName(a, i) }))); setCurAudio(hls.audioTrack); }
+          });
         } else {
           v.src = url; v.play().catch(() => {});
         }
@@ -154,7 +195,7 @@ export default function VideoPlayer() {
       v.textTracks[i].mode = match && shown < 0 ? 'showing' : 'hidden';
       if (match && shown < 0) shown = i;
     }
-    setCcOn(shown >= 0);
+    setCurrentSub(shown);
   }, [vtt, settings.subLang]);
 
   const bump = useCallback(() => {
@@ -177,14 +218,16 @@ export default function VideoPlayer() {
     const v = videoRef.current; if (!v) return;
     try { if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await v.requestPictureInPicture(); } catch { /* ignore */ }
   }, []);
-  const setLevel = (i: number) => { const h = hlsRef.current; if (h) h.currentLevel = i; setCurLevel(i); setMenuOpen(false); };
-  const setSpeed = (r: number) => { const v = videoRef.current; if (v) v.playbackRate = r; setRate(r); setMenuOpen(false); };
-  const toggleCC = () => {
-    const v = videoRef.current; if (!v || !v.textTracks.length) return;
-    const on = !ccOn;
-    for (let i = 0; i < v.textTracks.length; i++) v.textTracks[i].mode = on && i === 0 ? 'showing' : 'hidden';
-    setCcOn(on);
+  const setLevel = (i: number) => { const h = hlsRef.current; if (h) h.currentLevel = i; setCurLevel(i); };
+  const setSpeed = (r: number) => { const v = videoRef.current; if (v) v.playbackRate = r; setRate(r); };
+  const selectSub = (i: number) => {
+    const v = videoRef.current; if (!v) return;
+    for (let k = 0; k < v.textTracks.length; k++) v.textTracks[k].mode = k === i ? 'showing' : 'hidden';
+    setCurrentSub(i);
   };
+  const toggleCC = () => { if (!vtt.length) return; selectSub(ccOn ? -1 : Math.max(0, currentSub)); };
+  const selectAudio = (i: number) => { const h = hlsRef.current; if (h) { try { h.audioTrack = i; } catch { /* ignore */ } } setCurAudio(i); };
+  const toggleAcc = (sec: string) => setAcc((a) => ({ ...a, [sec]: !a[sec] }));
 
   // scrub
   const seekToClient = useCallback((clientX: number) => {
@@ -353,45 +396,75 @@ export default function VideoPlayer() {
               <button className={`vp-icon cc${ccOn ? ' on' : ''}`} id="vpCC" aria-label={t('ctl.subs_a')} aria-pressed={ccOn} onClick={toggleCC}>CC</button>
             )}
             <div className="vp-menu-wrap">
-              <button className="vp-icon" id="vpGear" aria-label={t('ctl.settings_a')} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => { setMenuOpen((o) => !o); setMenuView('main'); }}>{IcGear}</button>
+              <button className="vp-icon" id="vpGear" aria-label={t('ctl.settings_a')} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>{IcGear}</button>
               <div className={`vp-menu${menuOpen ? ' open' : ''}`} id="vpMenu" role="menu">
-                {menuView === 'main' && (
-                  <>
-                    <button className="vp-menu-row" role="menuitem" onClick={() => setMenuView('speed')}><span>{t('ctl.speed')}</span><span className="vp-menu-val">{rate === 1 ? t('ctl.normal') : `${rate}×`}</span></button>
-                    {levels.length > 0 && (
-                      <button className="vp-menu-row" role="menuitem" onClick={() => setMenuView('quality')}><span>{t('ctl.quality')}</span><span className="vp-menu-val">{curLevel < 0 ? t('ctl.auto') : `${levels.find((l) => l.i === curLevel)?.height ?? ''}p`}</span></button>
-                    )}
-                    <button className="vp-menu-row" role="menuitem" onClick={() => setMenuView('enhance')}><span>{t('ctl.enhance')}</span><span className="vp-menu-val">{settings.enhance ? t('ctl.on') : t('ctl.off')}</span></button>
-                  </>
-                )}
-                {menuView === 'speed' && SPEEDS.map((r) => (
-                  <button key={r} className={`vp-menu-row${r === rate ? ' on' : ''}`} role="menuitemradio" aria-checked={r === rate} onClick={() => setSpeed(r)}>{r === 1 ? t('ctl.normal') : `${r}×`}</button>
-                ))}
-                {menuView === 'quality' && (
-                  <>
-                    <button className={`vp-menu-row${curLevel < 0 ? ' on' : ''}`} role="menuitemradio" aria-checked={curLevel < 0} onClick={() => setLevel(-1)}>{t('ctl.auto')}</button>
-                    {levels.map((l) => (
-                      <button key={l.i} className={`vp-menu-row${l.i === curLevel ? ' on' : ''}`} role="menuitemradio" aria-checked={l.i === curLevel} onClick={() => setLevel(l.i)}>{l.height ? `${l.height}p` : `Level ${l.i + 1}`}</button>
-                    ))}
-                  </>
-                )}
-                {menuView === 'enhance' && (
-                  <>
-                    <button className={`vp-menu-row${settings.enhance ? ' on' : ''}`} role="menuitemcheckbox" aria-checked={settings.enhance} onClick={() => updateSettings({ enhance: !settings.enhance })}>
-                      <span>{t('ctl.enhance')}</span><span className="vp-menu-val">{settings.enhance ? t('ctl.on') : t('ctl.off')}</span>
+                {/* Subtitles */}
+                <div className={`vp-acc${acc.subs ? ' open' : ''}`}>
+                  <button className="vp-acc-head" aria-expanded={acc.subs} onClick={() => toggleAcc('subs')}>
+                    {AccIc}<span className="vp-acc-label">{t('menu.subtitles')}</span>
+                    <span className="vp-acc-val">{currentSub < 0 ? t('menu.off') : (vtt[currentSub]?.label || vtt[currentSub]?.lang || '')}</span>
+                  </button>
+                  <div className="vp-acc-body">
+                    <OptRow on={currentSub < 0} label={t('menu.off')} onClick={() => selectSub(-1)} />
+                    {vtt.length === 0 && <div className="vp-opt" style={{ opacity: 0.5 }}>{t('menu.no_subs_found')}</div>}
+                    {vtt.map((s, i) => <OptRow key={i} on={i === currentSub} label={s.label || s.lang || `${t('menu.track')}${i + 1}`} onClick={() => selectSub(i)} />)}
+                  </div>
+                </div>
+                {/* Audio language (HLS renditions) */}
+                {audioTracks.length > 1 && (
+                  <div className={`vp-acc${acc.audio ? ' open' : ''}`}>
+                    <button className="vp-acc-head" aria-expanded={acc.audio} onClick={() => toggleAcc('audio')}>
+                      {AccIc}<span className="vp-acc-label">{t('menu.audio_lang')}</span>
+                      <span className="vp-acc-val">{audioTracks.find((a) => a.i === curAudio)?.name || ''}</span>
                     </button>
-                    <div className={`vp-enh-slider${settings.enhance ? '' : ' off'}`}>
-                      <span style={{ fontSize: 12 }}>{t('ctl.grain')}</span>
-                      <input type="range" min={0} max={0.35} step={0.01} value={settings.grain} disabled={!settings.enhance} onChange={(e) => updateSettings({ grain: +e.target.value })} aria-label={t('ctl.grain')} />
-                      <span className="vp-enh-val">{Math.round(settings.grain * 100)}</span>
+                    <div className="vp-acc-body">
+                      {audioTracks.map((a) => <OptRow key={a.i} on={a.i === curAudio} label={a.name} onClick={() => selectAudio(a.i)} />)}
                     </div>
-                    <div className={`vp-enh-slider${settings.enhance ? '' : ' off'}`}>
-                      <span style={{ fontSize: 12 }}>{t('ctl.clarity')}</span>
-                      <input type="range" min={0} max={1} step={0.05} value={settings.clarity} disabled={!settings.enhance} onChange={(e) => updateSettings({ clarity: +e.target.value })} aria-label={t('ctl.clarity')} />
-                      <span className="vp-enh-val">{Math.round(settings.clarity * 100)}</span>
-                    </div>
-                  </>
+                  </div>
                 )}
+                {/* Playback speed */}
+                <div className={`vp-acc${acc.speed ? ' open' : ''}`}>
+                  <button className="vp-acc-head" aria-expanded={acc.speed} onClick={() => toggleAcc('speed')}>
+                    {AccIc}<span className="vp-acc-label">{t('menu.speed')}</span><span className="vp-acc-val">{rate}×</span>
+                  </button>
+                  <div className="vp-acc-body">
+                    <div className="vp-speeds">
+                      {SPEEDS.map((r) => <button key={r} type="button" className={`vp-speed${r === rate ? ' on' : ''}`} onClick={() => setSpeed(r)}>{r}×</button>)}
+                    </div>
+                  </div>
+                </div>
+                {/* Quality (HLS levels) */}
+                {levels.length > 1 && (
+                  <div className={`vp-acc${acc.quality ? ' open' : ''}`}>
+                    <button className="vp-acc-head" aria-expanded={acc.quality} onClick={() => toggleAcc('quality')}>
+                      {AccIc}<span className="vp-acc-label">{t('menu.quality')}</span>
+                      <span className="vp-acc-val">{curLevel < 0 ? t('menu.auto') : levelLabel(levels.find((l) => l.i === curLevel) || {})}</span>
+                    </button>
+                    <div className="vp-acc-body">
+                      <OptRow on={curLevel < 0} label={t('menu.auto')} onClick={() => setLevel(-1)} />
+                      {[...levels].sort((a, b) => (b.height || 0) - (a.height || 0)).map((l) => <OptRow key={l.i} on={l.i === curLevel} label={levelLabel(l)} onClick={() => setLevel(l.i)} />)}
+                    </div>
+                  </div>
+                )}
+                {/* Picture enhance */}
+                <div className={`vp-acc${acc.enhance ? ' open' : ''}`}>
+                  <button className="vp-acc-head" aria-expanded={acc.enhance} onClick={() => toggleAcc('enhance')}>
+                    {AccIc}<span className="vp-acc-label">{t('menu.enhance')}</span>
+                    <span className="vp-acc-val">{settings.enhance ? `${Math.round(settings.grain * 100)}%` : t('menu.off')}</span>
+                  </button>
+                  <div className="vp-acc-body">
+                    <OptRow on={settings.enhance} label={t('menu.enhance_on')} onClick={() => updateSettings({ enhance: !settings.enhance })} />
+                    <div className={`vp-enh-slider${settings.enhance ? '' : ' off'}`}>
+                      <input type="range" min={0} max={0.35} step={0.01} value={settings.grain} disabled={!settings.enhance} onChange={(e) => updateSettings({ grain: +e.target.value })} aria-label={t('ctl.grain')} />
+                      <span className="vp-enh-val">{Math.round(settings.grain * 100)}%</span>
+                    </div>
+                    <OptRow on={settings.clarity > 0} label={t('menu.clarity')} onClick={() => updateSettings({ clarity: settings.clarity > 0 ? 0 : 0.5 })} />
+                    <div className={`vp-enh-slider${settings.clarity > 0 ? '' : ' off'}`}>
+                      <input type="range" min={0} max={1} step={0.05} value={settings.clarity} disabled={settings.clarity <= 0} onChange={(e) => updateSettings({ clarity: +e.target.value })} aria-label={t('ctl.clarity')} />
+                      <span className="vp-enh-val">{Math.round(settings.clarity * 100)}%</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             {document.pictureInPictureEnabled && (

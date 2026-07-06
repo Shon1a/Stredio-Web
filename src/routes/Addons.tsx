@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useT } from '../i18n/i18n';
 import { useAddons } from '../stores/addons';
-import { useHomeConfig, rowOn, type HomeConfig } from '../stores/homeConfig';
-import { HOME_ROWS, CATALOG_CATS, PROVIDER_CATS } from '../lib/home';
+import { useHomeConfig } from '../stores/homeConfig';
+import { CATALOG_CATS, PROVIDER_CATS } from '../lib/home';
+import ConfigModal, { type ConfigTarget } from '../components/ConfigModal';
 
 /* Add-on Catalog — faithful port of the vanilla #addons: .section-title.addons-head
  * (puzzle mark) + .section-sub, then two .addon-section blocks (Official / Community)
@@ -33,12 +34,11 @@ export default function Addons() {
   const removeAddon = useAddons((s) => s.remove);
   const config = useHomeConfig((s) => s.config);
   const setOfficial = useHomeConfig((s) => s.setOfficial);
-  const toggleRow = useHomeConfig((s) => s.toggleRow);
 
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const [expanded, setExpanded] = useState<OfficialKey | null>(null);
+  const [cfg, setCfg] = useState<ConfigTarget | null>(null);
 
   const onInstall = async () => {
     if (!url.trim()) return;
@@ -49,7 +49,6 @@ export default function Addons() {
   };
 
   const officialOn = OFFICIAL.filter((a) => config[a.id]).length;
-  const rowLabel = (cat: string) => HOME_ROWS.find((r) => r.cat === cat)?.key;
 
   return (
     <section className="page active" id="addons" aria-label={t('addons.title')}>
@@ -71,7 +70,6 @@ export default function Addons() {
         <div className="addon-grid" id="officialAddons">
           {OFFICIAL.map((a) => {
             const on = config[a.id];
-            const rowMap = a.block ? (config[a.block] as HomeConfig['catalogRows']) : undefined;
             return (
               <div className={`addon${on ? ' installed' : ''}`} data-addon={a.id} key={a.id}>
                 {PuzzleIcon}
@@ -79,23 +77,10 @@ export default function Addons() {
                   <div className="name">{a.name} <span className="ver">{a.ver}</span> <span className={`badge ${on ? 'ok' : 'muted'}`}>{on ? t('addons.installed_tag') : t('addons.available')}</span></div>
                   <div className="desc"><span className="mono">{a.type}</span> — {a.desc}</div>
                   <div className="tags">{a.tags.map((tg) => <span className="tag" key={tg}>{tg}</span>)}</div>
-                  {on && a.block && a.cats && expanded === a.id && (
-                    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {a.cats.map((cat) => {
-                        const key = rowLabel(cat);
-                        return (
-                          <label key={cat} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
-                            <input type="checkbox" checked={rowOn(rowMap!, cat)} onChange={() => toggleRow(a.block!, cat)} />
-                            {key ? t(key) : cat}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
                 <div className="acts">
-                  {on && a.block && (
-                    <button className="minibtn" type="button" onClick={() => setExpanded(expanded === a.id ? null : a.id)} aria-expanded={expanded === a.id}>{t('addons.configure')}</button>
+                  {on && a.block && a.cats && (
+                    <button className="minibtn" type="button" onClick={() => setCfg({ block: a.block!, cats: a.cats!, title: a.name, kicker: t('catalog.modal_kicker') })}>{t('addons.configure')}</button>
                   )}
                   <button className={`minibtn ${on ? 'danger' : 'install'}`} type="button" onClick={() => setOfficial(a.id, !on)}>
                     {on ? t('addons.remove') : t('addons.install_short')}
@@ -148,6 +133,8 @@ export default function Addons() {
       </div>
       {err && <div style={{ color: '#e66', fontSize: 13, marginTop: 8 }}>{err}</div>}
       <div className="mono" style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>{t('addons.install_eg')}</div>
+
+      {cfg && <ConfigModal target={cfg} onClose={() => setCfg(null)} />}
     </section>
   );
 }

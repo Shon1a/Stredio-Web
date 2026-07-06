@@ -2,24 +2,24 @@ import { useState } from 'react';
 import { useT } from '../i18n/i18n';
 import { useAddons } from '../stores/addons';
 import { useHomeConfig } from '../stores/homeConfig';
+import { useOfficial, type OfficialAddon } from '../stores/official';
 import { CATALOG_CATS, PROVIDER_CATS } from '../lib/home';
 import ConfigModal, { type ConfigTarget } from '../components/ConfigModal';
 
-/* Add-on Catalog — faithful port of the vanilla #addons: .section-title.addons-head
- * (puzzle mark) + .section-sub, then two .addon-section blocks (Official / Community)
- * of .addon cards with .ic/.body/.name/.ver/.badge/.desc/.tags/.acts/.minibtn, and an
- * .install-box. Official cards toggle the home blocks (home-config store) + expose
- * per-row config; Community cards install by URL (browser-direct) + sync when signed in. */
+/* Add-on Catalog — faithful port of the vanilla #addons. The OFFICIAL list is now
+ * sourced from the Shon1a/Stredio-official-addons repo via the Stredio-Heart WASM
+ * merge (useOfficial store) instead of being hardcoded, so it's the repo's source of
+ * truth (and future official add-ons appear automatically). The four protected
+ * home-feature ids gate the home blocks (home-config store); any appended official
+ * add-on shows as a default metadata provider. Community cards install by URL. */
 
+// the four protected home-feature ids and how catalog/providers map to a home block
+const PROTECTED = new Set(['catalog', 'providers', 'studios', 'upcoming']);
+const CONFIG_MAP: Record<string, { block: 'catalogRows' | 'providerRows'; cats: string[] }> = {
+  catalog: { block: 'catalogRows', cats: CATALOG_CATS },
+  providers: { block: 'providerRows', cats: PROVIDER_CATS },
+};
 type OfficialKey = 'catalog' | 'providers' | 'studios' | 'upcoming';
-interface Official { id: OfficialKey; name: string; ver: string; type: string; desc: string; tags: string[]; block?: 'catalogRows' | 'providerRows'; cats?: string[] }
-
-const OFFICIAL: Official[] = [
-  { id: 'catalog', name: 'Catalog Rows', ver: '1.0', type: 'CATALOG', desc: 'Trending & top-rated movie and show rows on the home screen.', tags: ['Movies', 'Series'], block: 'catalogRows', cats: CATALOG_CATS },
-  { id: 'providers', name: 'Streaming Services', ver: '1.0', type: 'CATALOG', desc: 'Netflix, Disney+, Prime, Apple TV+, Max, Paramount+, Crunchyroll rows.', tags: ['Providers'], block: 'providerRows', cats: PROVIDER_CATS },
-  { id: 'studios', name: 'Studios', ver: '1.0', type: 'CATALOG', desc: 'Browse by studio — Marvel, Pixar, Warner, DC and more.', tags: ['Studios'] },
-  { id: 'upcoming', name: 'Upcoming Radar', ver: '1.0', type: 'CATALOG', desc: 'The auto-scrolling upcoming movies & series marquee.', tags: ['Upcoming'] },
-];
 
 const PuzzleIcon = (
   <span className="ic" aria-hidden="true">
@@ -34,6 +34,7 @@ export default function Addons() {
   const removeAddon = useAddons((s) => s.remove);
   const config = useHomeConfig((s) => s.config);
   const setOfficial = useHomeConfig((s) => s.setOfficial);
+  const official = useOfficial((s) => s.list);
 
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
@@ -48,7 +49,10 @@ export default function Addons() {
     finally { setBusy(false); }
   };
 
-  const officialOn = OFFICIAL.filter((a) => config[a.id]).length;
+  // t with fallback (missing key → the supplied default rather than the raw key)
+  const tf = (key: string, fb: string) => { const v = t(key); return v === key ? fb : v; };
+  const isOn = (a: OfficialAddon) => (PROTECTED.has(a.id) ? config[a.id as OfficialKey] : (a.defaultInstalled ?? true));
+  const officialOn = official.filter(isOn).length;
 
   return (
     <section className="page active" id="addons" aria-label={t('addons.title')}>
@@ -65,26 +69,35 @@ export default function Addons() {
       <div className="addon-section">
         <div className="addon-sec-head">
           <h3 className="addon-sec-title">{t('addons.official_head')}</h3>
-          <span className="addon-sec-count">{t('addons.count_installed', { n: officialOn, total: OFFICIAL.length })}</span>
+          <span className="addon-sec-count">{t('addons.count_installed', { n: officialOn, total: official.length })}</span>
         </div>
         <div className="addon-grid" id="officialAddons">
-          {OFFICIAL.map((a) => {
-            const on = config[a.id];
+          {official.map((a) => {
+            const on = isOn(a);
+            const cfgInfo = CONFIG_MAP[a.id];
+            const ver = a.ver || (a.version ? 'v' + a.version : '');
+            const typeLabel = tf('addon.' + a.id + '.type', (a.kind || '').toUpperCase());
+            const desc = tf('addon.' + a.id + '.desc', a.name);
+            const tags = a.tags || [];
             return (
               <div className={`addon${on ? ' installed' : ''}`} data-addon={a.id} key={a.id}>
                 {PuzzleIcon}
                 <div className="body">
-                  <div className="name">{a.name} <span className="ver">{a.ver}</span> <span className={`badge ${on ? 'ok' : 'muted'}`}>{on ? t('addons.installed_tag') : t('addons.available')}</span></div>
-                  <div className="desc"><span className="mono">{a.type}</span> — {a.desc}</div>
-                  <div className="tags">{a.tags.map((tg) => <span className="tag" key={tg}>{tg}</span>)}</div>
+                  <div className="name">{a.name} <span className="ver">{ver}</span> <span className={`badge ${on ? 'ok' : 'muted'}`}>{on ? t('addons.installed_tag') : t('addons.available')}</span></div>
+                  <div className="desc">{typeLabel ? <><span className="mono">{typeLabel}</span> — </> : null}{desc}</div>
+                  <div className="tags">{tags.map((tg) => <span className="tag" key={tg}>{tf('tag.' + tg, tg)}</span>)}</div>
                 </div>
                 <div className="acts">
-                  {on && a.block && a.cats && (
-                    <button className="minibtn" type="button" onClick={() => setCfg({ block: a.block!, cats: a.cats!, title: a.name, kicker: t('catalog.modal_kicker') })}>{t('addons.configure')}</button>
+                  {on && cfgInfo && (
+                    <button className="minibtn" type="button" onClick={() => setCfg({ block: cfgInfo.block, cats: cfgInfo.cats, title: a.name, kicker: t('catalog.modal_kicker') })}>{t('addons.configure')}</button>
                   )}
-                  <button className={`minibtn ${on ? 'danger' : 'install'}`} type="button" onClick={() => setOfficial(a.id, !on)}>
-                    {on ? t('addons.remove') : t('addons.install_short')}
-                  </button>
+                  {PROTECTED.has(a.id) ? (
+                    <button className={`minibtn ${on ? 'danger' : 'install'}`} type="button" onClick={() => setOfficial(a.id as OfficialKey, !on)}>
+                      {on ? t('addons.remove') : t('addons.install_short')}
+                    </button>
+                  ) : (
+                    <span className="minibtn is-default" aria-disabled="true">{t('addons.installed_tag')}</span>
+                  )}
                 </div>
               </div>
             );

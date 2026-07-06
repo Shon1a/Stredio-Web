@@ -4,6 +4,8 @@ import { useAuth } from './stores/auth';
 import { useAddons } from './stores/addons';
 import { useHistory } from './stores/history';
 import { useOfficial } from './stores/official';
+import { initHeartLibrary } from './lib/heartLibrary';
+import { initHeartCatalog } from './lib/heartCatalog';
 import AppShell from './layout/AppShell';
 import Home from './routes/Home';
 import Explore from './routes/Explore';
@@ -28,7 +30,12 @@ export default function App() {
   const reloadHistory = useHistory((s) => s.reload);
   const pullHistory = useHistory((s) => s.pull);
   const loadOfficial = useOfficial((s) => s.load);
-  useEffect(() => { refresh(); loadConfig(); loadOfficial(); }, [refresh, loadConfig, loadOfficial]);
+  useEffect(() => {
+    refresh(); loadConfig(); loadOfficial();
+    initHeartCatalog().catch(() => {});
+    // once the Heart WASM library runtime is up, re-normalize the library through it
+    initHeartLibrary().then(reloadHistory).catch(() => {});
+  }, [refresh, loadConfig, loadOfficial, reloadHistory]);
   // on sign-in/out the localStorage namespace (per-email) changes → reload, then
   // merge the server-stored add-on collection + watch history when signed in
   useEffect(() => {

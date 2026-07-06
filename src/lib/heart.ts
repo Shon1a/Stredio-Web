@@ -21,9 +21,31 @@ export interface AddonRuntime {
   free(): void;
 }
 
+export interface LibraryRuntime {
+  hydrate(libraryJson: string): string;
+  pulled(historyJson: string, progressJson: string, removedJson: string, now: number): string;
+  record_watch(itemJson: string): string;
+  set_progress(id: string, pos: number, dur: number, now: number): string;
+  remove(id: string, now: number): string;
+  continue_watching_json(): string;
+  snapshot_json(): string;
+  free(): void;
+}
+
+export interface CatalogRuntime {
+  hydrate_row_config(cfgJson: string): string;
+  set_gating(catalog: boolean, providers: boolean, studios: boolean): string;
+  toggle_row(cat: string, on: boolean): string;
+  visible_rows_json(): string;
+  snapshot_json(): string;
+  free(): void;
+}
+
 export interface HeartModule {
   default: (input?: unknown) => Promise<unknown>;
   AddonRuntime: new (inlineJson: string) => AddonRuntime;
+  LibraryRuntime: new () => LibraryRuntime;
+  CatalogRuntime: new () => CatalogRuntime;
   collection_addons_json?: (payloadJson: string) => string;
 }
 

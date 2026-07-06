@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { apiFetch } from '../lib/api';
 import { useAuth } from './auth';
+import { heartLib } from '../lib/heartLibrary';
 
 /* Continue Watching: watch history + resume progress + removal tombstones —
  * faithful port of the vanilla store (assets/js/app.js:630–785).
@@ -97,12 +98,19 @@ export const useHistory = create<HistoryState>((set, get) => {
     progress: readJSON(pKey(), {} as Record<string, Progress>),
     removed: readJSON(rKey(), {} as Record<string, number>),
 
-    reload: () => set({ history: readJSON(hKey(), []), progress: readJSON(pKey(), {}), removed: readJSON(rKey(), {}) }),
+    reload: () => {
+      const raw = { history: readJSON(hKey(), [] as WatchEntry[]), progress: readJSON(pKey(), {} as Record<string, Progress>), removed: readJSON(rKey(), {} as Record<string, number>) };
+      set(heartLib.normalize(raw) ?? raw); // Heart applies caps/ordering when available
+    },
 
     record: (m) => {
       if (!authed()) return; // history is a signed-in feature (matches vanilla)
+      const item = { ...m, at: Date.now() };
+      const cur = { history: get().history, progress: get().progress, removed: get().removed };
+      const next = heartLib.record(cur, item); // core reducer (Rust); null → JS fallback below
+      if (next) { set(next); persist(); schedulePush(); return; }
       const list = get().history.filter((x) => String(x.id) !== String(m.id)); // float existing to top
-      list.unshift({ ...m, at: Date.now() });
+      list.unshift(item);
       const removed = { ...get().removed };
       if (removed[String(m.id)]) delete removed[String(m.id)]; // re-watch clears its tombstone
       set({ history: list.slice(0, HISTORY_CAP), removed });
@@ -111,6 +119,9 @@ export const useHistory = create<HistoryState>((set, get) => {
 
     putProgress: (key, pos, dur) => {
       if (!key || !(pos > 0)) return;
+      const cur = { history: get().history, progress: get().progress, removed: get().removed };
+      const next = heartLib.setProgress(cur, key, Math.round(pos), Math.round(dur || 0), Date.now());
+      if (next) { set(next); persist(); schedulePush(); return; }
       const map = { ...get().progress };
       map[key] = { pos: Math.round(pos), dur: Math.round(dur || 0), at: Date.now() };
       const keys = Object.keys(map);
@@ -129,6 +140,9 @@ export const useHistory = create<HistoryState>((set, get) => {
     },
 
     remove: (id) => {
+      const cur = { history: get().history, progress: get().progress, removed: get().removed };
+      const next = heartLib.remove(cur, String(id), Date.now());
+      if (next) { set(next); persist(); pushNow(); return; }
       const removed = { ...get().removed, [String(id)]: Date.now() };
       set({ removed, history: get().history.filter((x) => String(x.id) !== String(id)) });
       persist(); pushNow();
@@ -140,6 +154,10 @@ export const useHistory = create<HistoryState>((set, get) => {
         const r = await apiFetch('/api/library-state');
         if (!r.ok) return;
         const remote = await r.json() as { history?: WatchEntry[]; progress?: Record<string, Progress>; removed?: Record<string, number> };
+        const cur = { history: get().history, progress: get().progress, removed: get().removed };
+        const remoteLib = { history: remote.history || [], progress: remote.progress || {}, removed: remote.removed || {} };
+        const next = heartLib.pulled(cur, remoteLib, Date.now()); // core merge (Rust)
+        if (next) { set(next); persist(); lastPull = Date.now(); return; }
         const tomb = mergeTomb(get().removed, remote.removed || {});
         const history = mergeHist(get().history, remote.history || [], tomb);
         const progress = mergeProg(get().progress, remote.progress || {});

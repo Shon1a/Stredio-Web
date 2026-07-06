@@ -3,6 +3,7 @@ import { useHome } from '../lib/queries';
 import { useT } from '../i18n/i18n';
 import { HOME_ROWS, CATALOG_CATS, PROVIDER_CATS } from '../lib/home';
 import { useHomeConfig, rowOn } from '../stores/homeConfig';
+import { visibleRows } from '../lib/heartCatalog';
 import Row from '../components/Row';
 import Hero from '../components/Hero';
 import UpcomingMarquee from '../components/UpcomingMarquee';
@@ -42,6 +43,15 @@ export default function Home() {
     );
   }
 
+  // home-row visibility via the Heart core when available, else the identical JS gating
+  const heartVisible = visibleRows(config);
+  const rowVisible = (cat: string) => (heartVisible
+    ? heartVisible.includes(cat)
+    : CATALOG_CATS.includes(cat) ? (config.catalog && rowOn(config.catalogRows, cat))
+      : PROVIDER_CATS.includes(cat) ? (config.providers && rowOn(config.providerRows, cat))
+        : true);
+  const studiosVisible = heartVisible ? heartVisible.includes('studios') : config.studios;
+
   const rows = data?.rows ?? {};
   const heroItems = (data?.hero?.results ?? []).filter((m) => m.backdrop || m.poster);
   const upMovies = data?.upcoming?.movie ?? [];
@@ -55,9 +65,7 @@ export default function Home() {
         <ContinueRow onSelect={onSelect} />
         <div id="strips">
           {HOME_ROWS.map((row) => {
-            // add-on gating: hide a row when its block/add-on or its per-row toggle is off
-            if (CATALOG_CATS.includes(row.cat) && !(config.catalog && rowOn(config.catalogRows, row.cat))) return null;
-            if (PROVIDER_CATS.includes(row.cat) && !(config.providers && rowOn(config.providerRows, row.cat))) return null;
+            if (!rowVisible(row.cat)) return null; // add-on gating (Heart core / JS fallback)
             const list = (rows[row.cat]?.results ?? []).filter((m) => m.poster);
             if (!list.length) return null;
             return (
@@ -72,7 +80,7 @@ export default function Home() {
             );
           })}
           {/* Studios logo row — after the category/provider rows, as in the vanilla layout */}
-          {config.studios && <StudioRow onOpen={(key) => nav(`/browse/studio:${key}`)} />}
+          {studiosVisible && <StudioRow onOpen={(key) => nav(`/browse/studio:${key}`)} />}
           {/* rows supplied by installed community catalog add-ons */}
           <AddonRows onSelect={onSelect} />
         </div>

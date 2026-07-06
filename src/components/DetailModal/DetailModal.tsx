@@ -207,6 +207,10 @@ export default function DetailModal() {
     return { id: target.id, key, title, poster: meta?.poster || target.poster, year, type: target.type, genre: target.genre, rating, ep: ep ? `S${ep.season}E${ep.ep}` : undefined, season: ep?.season ?? null, episode: ep?.ep ?? null };
   };
   const subsOf = (s: AddonStream) => s.subtitles?.map((x) => ({ lang: x.lang, label: x.lang || 'Subtitle', url: x.url }));
+  // series context for the in-player episodes panel (only for a series episode)
+  const seriesFor = (ep: Ep | null) => (ep && meta?.seasonList?.length
+    ? { seasons: meta.seasonList, metaId: target.id, season: ep.season, ep: ep.ep, title, playEp: (s: number, e: number) => { void playEpisode(s, e); } }
+    : undefined);
   const playStreamFor = (s: AddonStream, ep: Ep | null) => {
     const nxt = nextEpOf(ep);
     playSource({
@@ -214,6 +218,7 @@ export default function DetailModal() {
       subtitle: ep ? `S${ep.season} · E${ep.ep}` : undefined,
       media: buildMediaFor(ep), subtitles: subsOf(s),
       next: nxt ? () => { void playEpisode(nxt.season, nxt.ep); } : undefined,
+      series: seriesFor(ep),
     });
   };
   const playStream = (s: AddonStream) => playStreamFor(s, pickedEp);
@@ -228,7 +233,7 @@ export default function DetailModal() {
     const best = shown[0] || list[0];
     if (best) { playStreamFor(best, { season, ep }); return; }
     const nxt = nextEpOf({ season, ep });
-    playSource({ url: '/assets/demo.mp4', title, subtitle: `S${season} · E${ep}`, media: buildMediaFor({ season, ep }), next: nxt ? () => { void playEpisode(nxt.season, nxt.ep); } : undefined });
+    playSource({ url: '/assets/demo.mp4', title, subtitle: `S${season} · E${ep}`, media: buildMediaFor({ season, ep }), next: nxt ? () => { void playEpisode(nxt.season, nxt.ep); } : undefined, series: seriesFor({ season, ep }) });
   };
   // language buckets (from the sources) + the sources for the picked language, sorted
   // best-quality first
@@ -244,7 +249,7 @@ export default function DetailModal() {
     else if (streams.length) playStreamFor(streams[0], pickedEp);
     else {
       const nxt = nextEpOf(pickedEp);
-      playSource({ url: '/assets/demo.mp4', title, subtitle: pickedEp ? `S${pickedEp.season} · E${pickedEp.ep}` : undefined, media: buildMediaFor(pickedEp), next: nxt ? () => { void playEpisode(nxt.season, nxt.ep); } : undefined });
+      playSource({ url: '/assets/demo.mp4', title, subtitle: pickedEp ? `S${pickedEp.season} · E${pickedEp.ep}` : undefined, media: buildMediaFor(pickedEp), next: nxt ? () => { void playEpisode(nxt.season, nxt.ep); } : undefined, series: seriesFor(pickedEp) });
     }
   };
 

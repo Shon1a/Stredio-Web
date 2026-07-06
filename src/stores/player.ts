@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { SeasonInfo } from '../lib/types';
 
 /* What the video player is currently playing. null → closed. A source can be an
  * HLS manifest (.m3u8) or a progressive file (mp4/mkv/webm); the player probes
@@ -37,6 +38,18 @@ export interface PlaySource {
   subtitles?: SubtitleTrack[];
   media?: PlayMedia;      // for history + resume
   next?: () => void;      // play the next episode (series) — used by auto-play-next + the Next button
+  series?: PlaySeries;    // series context → the in-player Episodes button + panel
+}
+
+/* Series context for the in-player episodes panel: the season list + the currently-
+ * playing episode + a callback to jump to any episode. */
+export interface PlaySeries {
+  seasons: SeasonInfo[];
+  metaId: string | number;
+  season: number;
+  ep: number;
+  title?: string;
+  playEp: (season: number, ep: number) => void;
 }
 
 interface PlayerState {

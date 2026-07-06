@@ -5,6 +5,9 @@ import { useSettings } from '../../stores/settings';
 import { useT } from '../../i18n/i18n';
 import { loadHls, isHlsUrl, type HlsInstance } from '../../lib/hls';
 import { toVttBlobUrl } from '../../lib/subtitles';
+import EpisodePanel from './EpisodePanel';
+
+const IcEpisodes = <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M4 5h16v2H4zM4 11h16v2H4zM4 17h10v2H4z" /></svg>;
 
 // friendly name for an HLS audio rendition + a snapped quality label (matches vanilla)
 const AUDIO_NAMES: Record<string, string> = { eng: 'English', en: 'English', rus: 'Russian', ru: 'Russian', ka: 'ქართული', kat: 'ქართული', geo: 'ქართული', ukr: 'Ukrainian', uk: 'Ukrainian', tur: 'Turkish', fre: 'French', fr: 'French', ger: 'German', de: 'German', ita: 'Italian', jpn: 'Japanese', ja: 'Japanese', kor: 'Korean', spa: 'Spanish', es: 'Spanish' };
@@ -109,6 +112,7 @@ export default function VideoPlayer() {
   const [fs, setFs] = useState(false);
   const [hideUi, setHideUi] = useState(false);
   const [vtt, setVtt] = useState<Array<{ lang: string; label: string; url: string }>>([]);
+  const [epPanelOpen, setEpPanelOpen] = useState(false);
   const ccOn = currentSub >= 0;
 
   // attach the source (HLS via hls.js, else native)
@@ -117,7 +121,7 @@ export default function VideoPlayer() {
     if (!v || !source) return;
     let cancelled = false;
     recordedRef.current = false; resumedRef.current = false; lastProgRef.current = 0;
-    setLoading(true); setPlaying(false); setCur(0); setDur(0); setBuffered(0); setLevels([]); setCurLevel(-1); setMenuOpen(false); setHideUi(false); setAudioTracks([]); setCurAudio(0);
+    setLoading(true); setPlaying(false); setCur(0); setDur(0); setBuffered(0); setLevels([]); setCurLevel(-1); setMenuOpen(false); setHideUi(false); setAudioTracks([]); setCurAudio(0); setEpPanelOpen(false);
     const url = source.url;
     const nativeHls = v.canPlayType('application/vnd.apple.mpegurl');
     const useHls = (source.kind === 'hls' || isHlsUrl(url)) && !nativeHls;
@@ -392,6 +396,9 @@ export default function VideoPlayer() {
             </div>
             <div className="vp-time"><span id="vpCur">{fmt(cur)}</span> / <span id="vpDur">{fmt(dur)}</span></div>
             <div className="vp-spacer" />
+            {source.series && (
+              <button className={`vp-icon${epPanelOpen ? ' on' : ''}`} id="vpEpisodes" aria-label={t('ctl.episodes_a')} aria-pressed={epPanelOpen} onClick={() => setEpPanelOpen((o) => !o)}>{IcEpisodes}</button>
+            )}
             {hasSubs && (
               <button className={`vp-icon cc${ccOn ? ' on' : ''}`} id="vpCC" aria-label={t('ctl.subs_a')} aria-pressed={ccOn} onClick={toggleCC}>CC</button>
             )}
@@ -481,6 +488,9 @@ export default function VideoPlayer() {
           {t('player.next_episode')} ›
         </button>
       )}
+
+      {/* In-player episodes panel (series) */}
+      {source.series && <EpisodePanel open={epPanelOpen} series={source.series} onClose={() => setEpPanelOpen(false)} />}
     </div>
   );
 }

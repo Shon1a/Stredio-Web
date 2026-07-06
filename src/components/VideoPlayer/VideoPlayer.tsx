@@ -4,6 +4,7 @@ import { useHistory } from '../../stores/history';
 import { useSettings } from '../../stores/settings';
 import { useT } from '../../i18n/i18n';
 import { loadHls, isHlsUrl, type HlsInstance } from '../../lib/hls';
+import { toVttBlobUrl } from '../../lib/subtitles';
 
 /* Core video player — reproduces the #playerOverlay markup/classes (so app.css
  * styles it) with HLS.js + native playback and the essential controls: play/pause,
@@ -77,6 +78,7 @@ export default function VideoPlayer() {
   const [ccOn, setCcOn] = useState(false);
   const [fs, setFs] = useState(false);
   const [hideUi, setHideUi] = useState(false);
+  const [vtt, setVtt] = useState<Array<{ lang: string; label: string; url: string }>>([]);
 
   // attach the source (HLS via hls.js, else native)
   useEffect(() => {
@@ -99,6 +101,14 @@ export default function VideoPlayer() {
           hls.attachMedia(v);
           hls.on('hlsManifestParsed', () => {
             setLevels(hls.levels.map((l, i) => ({ i, height: l.height })));
+            // apply the preferred-quality setting (else stay on auto)
+            const pref = settings.autoQuality;
+            if (pref !== 'best') {
+              const want = pref === '4k' ? 2160 : 1080;
+              let best = -1, bestH = -1;
+              hls.levels.forEach((l, i) => { const h = l.height ?? 0; if (h <= want && h > bestH) { bestH = h; best = i; } });
+              if (best >= 0) hls.currentLevel = best;
+            }
             v.play().catch(() => {});
           });
           hls.on('hlsLevelSwitched', () => setCurLevel(hls.currentLevel));
@@ -118,6 +128,34 @@ export default function VideoPlayer() {
       try { v.removeAttribute('src'); v.load(); } catch { /* ignore */ }
     };
   }, [source, flush]);
+
+  // convert add-on subtitle tracks (SRT / gzipped) to same-origin VTT blob URLs so
+  // the browser can actually render them
+  useEffect(() => {
+    const subs = source?.subtitles;
+    if (!subs?.length) { setVtt([]); return; }
+    let alive = true;
+    const created: string[] = [];
+    Promise.all(subs.map(async (s) => {
+      const url = await toVttBlobUrl(s.url);
+      if (url) created.push(url);
+      return url ? { lang: s.lang, label: s.label, url } : null;
+    })).then((tracks) => { if (alive) setVtt(tracks.filter(Boolean) as Array<{ lang: string; label: string; url: string }>); });
+    return () => { alive = false; created.forEach((u) => URL.revokeObjectURL(u)); };
+  }, [source]);
+
+  // honor the default-subtitles-language setting once tracks exist
+  useEffect(() => {
+    const v = videoRef.current; if (!v) return;
+    const want = settings.subLang;
+    let shown = -1;
+    for (let i = 0; i < v.textTracks.length; i++) {
+      const match = want !== 'off' && !!vtt[i]?.lang?.toLowerCase().startsWith(want);
+      v.textTracks[i].mode = match && shown < 0 ? 'showing' : 'hidden';
+      if (match && shown < 0) shown = i;
+    }
+    setCcOn(shown >= 0);
+  }, [vtt, settings.subLang]);
 
   const bump = useCallback(() => {
     setHideUi(false);
@@ -194,7 +232,12 @@ export default function VideoPlayer() {
 
   const pct = dur ? (cur / dur) * 100 : 0;
   const bufPct = dur ? (buffered / dur) * 100 : 0;
-  const hasSubs = !!source.subtitles?.length;
+  const hasSubs = vtt.length > 0;
+
+  // ::cue styling from the subtitle settings (color / bg / size / outline)
+  const ow = settings.subOutlineW, oc = settings.subOutline;
+  const cueOutline = ow > 0 ? `text-shadow:${-ow}px ${-ow}px 0 ${oc},${ow}px ${-ow}px 0 ${oc},${-ow}px ${ow}px 0 ${oc},${ow}px ${ow}px 0 ${oc};` : '';
+  const cueCss = `#playerVideo::cue{color:${settings.subColor};background-color:${settings.subBg};font-size:${settings.subSize}%;${cueOutline}}`;
 
   return (
     <div
@@ -253,10 +296,13 @@ export default function VideoPlayer() {
         onVolumeChange={(e) => { setVol(e.currentTarget.volume); setMuted(e.currentTarget.muted); }}
         onEnded={() => setPlaying(false)}
       >
-        {source.subtitles?.map((s, i) => (
-          <track key={i} kind="subtitles" src={s.url} srcLang={s.lang} label={s.label} default={i === 0} />
+        {vtt.map((s, i) => (
+          <track key={i} kind="subtitles" src={s.url} srcLang={s.lang} label={s.label} />
         ))}
       </video>
+
+      {/* subtitle appearance from Settings, applied to the cue text */}
+      <style>{cueCss}</style>
 
       <div className="vp-grain" id="vpGrain" aria-hidden="true" />
 

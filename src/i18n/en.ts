@@ -181,6 +181,10 @@ const SEED: Record<string, string> = {
   'addons.installed': 'Installed',
   'addons.none': 'No community add-ons yet.',
   'addons.sync_note': 'Signed in? Your add-ons sync across your devices.',
+  'addons.configure': 'Configure',
+  'addons.enable': 'Add',
+  'addons.remove': 'Remove',
+  'addons.on': 'On',
 
   // auth
   'auth.kicker': '// sign in to manage add-ons & settings',

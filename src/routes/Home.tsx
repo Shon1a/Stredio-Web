@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useHome } from '../lib/queries';
 import { useT } from '../i18n/i18n';
-import { HOME_ROWS } from '../lib/home';
+import { HOME_ROWS, CATALOG_CATS, PROVIDER_CATS } from '../lib/home';
+import { useHomeConfig, rowOn } from '../stores/homeConfig';
 import Row from '../components/Row';
 import Hero from '../components/Hero';
 import UpcomingMarquee from '../components/UpcomingMarquee';
@@ -22,6 +23,7 @@ export default function Home() {
   const openModal = useModal((s) => s.open);
   const nav = useNavigate();
   const toggleList = useLibrary((s) => s.toggle);
+  const config = useHomeConfig((s) => s.config);
   const onSelect = (item: MediaItem) => openModal(openItem(item));
   const onAdd = (item: MediaItem) => toggleList({ id: item.id, type: item.type, title: item.title, year: item.year, rating: item.rating, poster: item.poster });
   const onSeeAll = (cat: string) => nav(`/browse/${cat}`);
@@ -48,10 +50,13 @@ export default function Home() {
     <section className="page active" id="browse" aria-label="Browse catalog">
       <div id="home">
         {heroItems.length > 0 && <Hero items={heroItems} onPlay={onSelect} onAdd={onAdd} />}
-        <UpcomingMarquee movies={upMovies} series={upSeries} onSelect={onSelect} onSeeAll={onSeeAll} />
+        {config.upcoming && <UpcomingMarquee movies={upMovies} series={upSeries} onSelect={onSelect} onSeeAll={onSeeAll} />}
         <ContinueRow onSelect={onSelect} />
         <div id="strips">
           {HOME_ROWS.map((row) => {
+            // add-on gating: hide a row when its block/add-on or its per-row toggle is off
+            if (CATALOG_CATS.includes(row.cat) && !(config.catalog && rowOn(config.catalogRows, row.cat))) return null;
+            if (PROVIDER_CATS.includes(row.cat) && !(config.providers && rowOn(config.providerRows, row.cat))) return null;
             const list = (rows[row.cat]?.results ?? []).filter((m) => m.poster);
             if (!list.length) return null;
             return (
@@ -66,7 +71,7 @@ export default function Home() {
             );
           })}
           {/* Studios logo row — after the category/provider rows, as in the vanilla layout */}
-          <StudioRow onOpen={(key) => nav(`/browse/studio:${key}`)} />
+          {config.studios && <StudioRow onOpen={(key) => nav(`/browse/studio:${key}`)} />}
         </div>
       </div>
     </section>

@@ -8,6 +8,11 @@ export interface HomeRow {
   key: string;   // i18n key for the row title
 }
 
+/* Which HOME_ROWS belong to the "Catalog Rows" add-on vs the "Streaming Services"
+ * add-on — the two configurable blocks whose rows the config toggles govern. */
+export const CATALOG_CATS = ['trending_movie', 'trending_tv', 'top_movie', 'top_tv', 'trending_anime', 'top_anime'];
+export const PROVIDER_CATS = ['prov_netflix', 'prov_disney', 'prov_prime', 'prov_apple', 'prov_max', 'prov_paramount', 'prov_crunchyroll'];
+
 export const HOME_ROWS: HomeRow[] = [
   { cat: 'trending_movie', key: 'sec.trending_movies' },
   { cat: 'trending_tv', key: 'sec.trending_shows' },

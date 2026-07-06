@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useT } from '../i18n/i18n';
 import { useAddons } from '../stores/addons';
 import { useHomeConfig } from '../stores/homeConfig';
@@ -22,11 +22,29 @@ const CONFIG_MAP: Record<string, { block: 'catalogRows' | 'providerRows'; cats: 
 };
 type OfficialKey = 'catalog' | 'providers' | 'studios' | 'upcoming';
 
-const PuzzleIcon = (
-  <span className="ic" aria-hidden="true">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.6 2.6 0 0 1 0 5.2H2V20a2 2 0 0 0 2 2h3.8v-1.5a2.6 2.6 0 0 1 5.2 0V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z" /></svg>
-  </span>
-);
+/* The Stredio puzzle-piece icon — the vanilla mask-based pzPieceIc (a rounded square
+ * with two additive + two subtractive circle bumps → a single jigsaw piece). Filled
+ * via app.css `.addon .ic.puzzle .pzPieceIc rect[data-fill]`. Unique mask id per card. */
+function PuzzleIcon() {
+  const mid = useId();
+  return (
+    <div className="ic puzzle" aria-hidden="true">
+      <svg className="pzPieceIc" viewBox="0 0 120 120" focusable="false">
+        <defs>
+          <mask id={mid}>
+            <rect width="120" height="120" fill="#000" />
+            <rect x="24" y="24" width="72" height="72" rx="13" fill="#fff" />
+            <circle cx="60" cy="24" r="13" fill="#fff" />
+            <circle cx="96" cy="60" r="13" fill="#fff" />
+            <circle cx="60" cy="96" r="13" fill="#000" />
+            <circle cx="24" cy="60" r="13" fill="#000" />
+          </mask>
+        </defs>
+        <rect data-fill width="120" height="120" mask={`url(#${mid})`} />
+      </svg>
+    </div>
+  );
+}
 
 export default function Addons() {
   const t = useT();
@@ -59,7 +77,19 @@ export default function Addons() {
   return (
     <section className="page active" id="addons" aria-label={t('addons.title')}>
       <h2 className="section-title display addons-head">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 30, height: 30 }}><path d="M4 7h4V5a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h2a2 2 0 1 1 0 4h-2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H5a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H4z" /></svg>
+        <svg className="pzPiece" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+          <defs>
+            <mask id="pzMaskHead">
+              <rect width="120" height="120" fill="#000" />
+              <rect x="24" y="24" width="72" height="72" rx="13" fill="#fff" />
+              <circle cx="60" cy="24" r="13" fill="#fff" />
+              <circle cx="96" cy="60" r="13" fill="#fff" />
+              <circle cx="60" cy="96" r="13" fill="#000" />
+              <circle cx="24" cy="60" r="13" fill="#000" />
+            </mask>
+          </defs>
+          <rect data-fill width="120" height="120" mask="url(#pzMaskHead)" />
+        </svg>
         <span>{t('addons.title')}</span>
       </h2>
       <p className="section-sub">
@@ -83,7 +113,7 @@ export default function Addons() {
             const tags = a.tags || [];
             return (
               <div className={`addon${on ? ' installed' : ''}`} data-addon={a.id} key={a.id}>
-                {PuzzleIcon}
+                <PuzzleIcon />
                 <div className="body">
                   <div className="name">{a.name} <span className="ver">{ver}</span> <span className={`badge ${on ? 'ok' : 'muted'}`}>{on ? t('addons.installed_tag') : t('addons.available')}</span></div>
                   <div className="desc">{typeLabel ? <><span className="mono">{typeLabel}</span> — </> : null}{desc}</div>
@@ -121,7 +151,7 @@ export default function Addons() {
         <div className="addon-grid" id="communityAddons">
           {installed.map((a) => (
             <div className="addon installed" data-addon={a.id} key={a.id}>
-              {PuzzleIcon}
+              <PuzzleIcon />
               <div className="body">
                 <div className="name">{a.manifest.name} <span className="ver">{a.manifest.version || ''}</span> <span className="badge ok">{t('addons.installed_tag')}</span></div>
                 <div className="desc">{a.manifest.description || a.manifest.id}</div>

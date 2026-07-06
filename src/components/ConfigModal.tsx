@@ -1,6 +1,8 @@
 import { useT } from '../i18n/i18n';
+import { useHome } from '../lib/queries';
 import { useHomeConfig, rowOn, type HomeConfig } from '../stores/homeConfig';
 import { HOME_ROWS } from '../lib/home';
+import { imgW } from '../lib/img';
 
 /* Configure modal for a home block (Catalog Rows / Streaming Services) — port of the
  * vanilla #catalogOverlay / #providersOverlay: an .auth-overlay card with a live
@@ -13,10 +15,12 @@ const rowKey = (cat: string) => HOME_ROWS.find((r) => r.cat === cat)?.key || cat
 
 export default function ConfigModal({ target, onClose }: { target: ConfigTarget; onClose: () => void }) {
   const t = useT();
+  const { data } = useHome();
   const config = useHomeConfig((s) => s.config);
   const toggleRow = useHomeConfig((s) => s.toggleRow);
   const map = config[target.block] as HomeConfig['catalogRows'];
   const enabled = target.cats.filter((c) => rowOn(map, c));
+  const rows = data?.rows ?? {};
 
   return (
     <div className="auth-overlay open" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -32,16 +36,20 @@ export default function ConfigModal({ target, onClose }: { target: ConfigTarget;
             <span className="pv-label">{t('cfg.preview_label')}</span>
           </div>
           <div className="cfg-preview-screen">
-            {enabled.length ? enabled.map((cat) => (
-              <div className="cfg-preview-row" data-cat={cat} key={cat}>
-                <div className="cfg-row-label">{t(rowKey(cat))}</div>
-                <div className="cfg-row-strip" style={{ display: 'flex', gap: 6, marginTop: 5 }}>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <span key={i} style={{ width: 34, height: 20, borderRadius: 3, background: 'linear-gradient(135deg,#242424,#131313)', flex: '0 0 auto' }} />
-                  ))}
+            {enabled.length ? enabled.map((cat) => {
+              const posters = (rows[cat]?.results ?? []).filter((m) => m.poster).slice(0, 7);
+              return (
+                <div className="cfg-preview-row" data-cat={cat} key={cat}>
+                  <div className="cfg-row-label">{t(rowKey(cat))}</div>
+                  <div className="cfg-row-strip">
+                    {Array.from({ length: 7 }).map((_, i) => {
+                      const p = posters.length ? posters[i % posters.length] : undefined;
+                      return <span className="cfg-tile" key={i}>{p?.poster && <img src={imgW(p.poster, 'w185')} alt="" loading="lazy" decoding="async" />}</span>;
+                    })}
+                  </div>
                 </div>
-              </div>
-            )) : <div className="cfg-preview-empty">{t('cfg.preview_empty')}</div>}
+              );
+            }) : <div className="cfg-preview-empty">{t('cfg.preview_empty')}</div>}
           </div>
         </div>
 

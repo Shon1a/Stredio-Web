@@ -5,6 +5,7 @@ import { useHomeConfig } from '../stores/homeConfig';
 import { useOfficial, type OfficialAddon } from '../stores/official';
 import { CATALOG_CATS, PROVIDER_CATS } from '../lib/home';
 import ConfigModal, { type ConfigTarget } from '../components/ConfigModal';
+import PreviewModal from '../components/PreviewModal';
 
 /* Add-on Catalog — faithful port of the vanilla #addons. The OFFICIAL list is now
  * sourced from the Shon1a/Stredio-official-addons repo via the Stredio-Heart WASM
@@ -23,7 +24,7 @@ type OfficialKey = 'catalog' | 'providers' | 'studios' | 'upcoming';
 
 const PuzzleIcon = (
   <span className="ic" aria-hidden="true">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h4V5a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h2a2 2 0 1 1 0 4h-2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H5a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H4z" /></svg>
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.6 2.6 0 0 1 0 5.2H2V20a2 2 0 0 0 2 2h3.8v-1.5a2.6 2.6 0 0 1 5.2 0V22H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z" /></svg>
   </span>
 );
 
@@ -40,6 +41,7 @@ export default function Addons() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [cfg, setCfg] = useState<ConfigTarget | null>(null);
+  const [preview, setPreview] = useState<{ id: string; name: string } | null>(null);
 
   const onInstall = async () => {
     if (!url.trim()) return;
@@ -88,9 +90,11 @@ export default function Addons() {
                   <div className="tags">{tags.map((tg) => <span className="tag" key={tg}>{tf('tag.' + tg, tg)}</span>)}</div>
                 </div>
                 <div className="acts">
-                  {on && cfgInfo && (
+                  {a.preview ? (
+                    <button className="minibtn" type="button" onClick={() => setPreview({ id: a.id, name: a.name })}>{t('addons.preview')}</button>
+                  ) : on && cfgInfo ? (
                     <button className="minibtn" type="button" onClick={() => setCfg({ block: cfgInfo.block, cats: cfgInfo.cats, title: a.name, kicker: t('catalog.modal_kicker') })}>{t('addons.configure')}</button>
-                  )}
+                  ) : null}
                   {PROTECTED.has(a.id) ? (
                     <button className={`minibtn ${on ? 'danger' : 'install'}`} type="button" onClick={() => setOfficial(a.id as OfficialKey, !on)}>
                       {on ? t('addons.remove') : t('addons.install_short')}
@@ -148,6 +152,7 @@ export default function Addons() {
       <div className="mono" style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>{t('addons.install_eg')}</div>
 
       {cfg && <ConfigModal target={cfg} onClose={() => setCfg(null)} />}
+      {preview && <PreviewModal id={preview.id} name={preview.name} onClose={() => setPreview(null)} />}
     </section>
   );
 }

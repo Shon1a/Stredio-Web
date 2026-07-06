@@ -2,6 +2,7 @@ import { useHistory } from '../stores/history';
 import { useModal } from '../stores/modal';
 import { useT } from '../i18n/i18n';
 import Poster from './Poster';
+import Rail from './Rail';
 import type { MediaItem } from '../lib/types';
 import type { WatchEntry } from '../stores/history';
 
@@ -31,25 +32,23 @@ export default function ContinueRow({ onSelect: _onSelect }: { onSelect?: (m: Me
   return (
     <div className="strip reveal in" data-row="continue">
       <div className="strip-head"><span className="strip-title static mono">{t('sec.continue')}</span></div>
-      <div className="strip-rail">
-        <div className="strip-row">
-          {history.map((e, i) => {
-            const key = e.key || String(e.id);
-            const p = progress[key];
-            const frac = p && p.dur > 0 ? p.pos / p.dur : 0;
-            const item: MediaItem = { id: e.id, type: e.type, title: e.title, year: e.year, rating: e.rating, poster: e.poster, genre: e.genre };
-            return (
-              <div className="pcard" key={`${e.id}-${i}`}>
-                <Poster item={item} seed={i} progress={frac} onRemove={() => remove(e.id)} onSelect={() => openEntry(e)} />
-                <div className="cap">
-                  <div className="t">{e.title}</div>
-                  <div className="meta mono">{e.ep || e.year || ''}</div>
-                </div>
+      <Rail>
+        {history.map((e, i) => {
+          const key = e.key || String(e.id);
+          const p = progress[key];
+          const frac = p && p.dur > 0 ? p.pos / p.dur : 0;
+          const item: MediaItem = { id: e.id, type: e.type, title: e.title, year: e.year, rating: e.rating, poster: e.poster, genre: e.genre };
+          return (
+            <div className="pcard" key={`${e.id}-${i}`}>
+              <Poster item={item} seed={i} progress={frac} onRemove={() => remove(e.id)} onSelect={() => openEntry(e)} />
+              <div className="cap">
+                <div className="t">{e.title}</div>
+                <div className="meta mono">{e.ep || e.year || ''}</div>
               </div>
-            );
-          })}
-        </div>
-      </div>
+            </div>
+          );
+        })}
+      </Rail>
     </div>
   );
 }

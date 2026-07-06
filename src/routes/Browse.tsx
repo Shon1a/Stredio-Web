@@ -22,7 +22,10 @@ function titleFor(cat: string, t: (k: string) => string): string {
   return cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default function Browse({ cat: catProp }: { cat?: string }) {
+/* topLevel = a primary rail destination (TV / Movies / Anime): a plain section title
+ * with the larger explore-grid cards and NO back button. Otherwise a drill-down
+ * (reached from "see all"): the #catview cat-head with a Back button + the grid. */
+export default function Browse({ cat: catProp, topLevel }: { cat?: string; topLevel?: boolean }) {
   const t = useT();
   const nav = useNavigate();
   const params = useParams();
@@ -36,6 +39,17 @@ export default function Browse({ cat: catProp }: { cat?: string }) {
     ? { kind: 'studio', studio: studioKey, title }
     : { kind: 'category', cat, title };
   const onSelect = (item: MediaItem) => openModal(openItem(item));
+
+  if (topLevel) {
+    return (
+      <section className="page active" id="browse" aria-label={title}>
+        <h2 className="section-title display" style={{ padding: '0 var(--page-pad)' }}>{title}</h2>
+        <div className="explore-body">
+          <CatalogGrid desc={desc} host="explore" onSelect={onSelect} />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="page active" id="browse" aria-label={title}>

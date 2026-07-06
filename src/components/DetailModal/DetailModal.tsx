@@ -120,6 +120,7 @@ export default function DetailModal() {
   const heroRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const streamsRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const [bdLoaded, setBdLoaded] = useState(false);
   const [pickedEp, setPickedEp] = useState<{ season: number; ep: number } | null>(null);
@@ -153,6 +154,9 @@ export default function DetailModal() {
       .finally(() => { if (alive) setStreamsLoading(false); });
     return () => { alive = false; };
   }, [meta?.imdb, isTv, pickedEp]);
+
+  // picking an episode brings its freshly-loaded sources into view (matches vanilla)
+  useEffect(() => { if (pickedEp) streamsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [pickedEp]);
 
   // close the modal when the route changes (navigating away dismisses it)
   const { pathname } = useLocation();
@@ -262,7 +266,7 @@ export default function DetailModal() {
 
               {isTv && meta && <EpisodeChooser meta={meta} initial={target.resumeEp} onEpisode={(season, ep) => setPickedEp({ season, ep })} />}
 
-              <div className="m-streams">
+              <div className="m-streams" ref={streamsRef}>
                 <div className="m-rail-head">
                   <h4 className="m-rail-label">{t('modal.streams')}</h4>
                 </div>

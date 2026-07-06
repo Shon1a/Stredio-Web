@@ -44,9 +44,9 @@ export default function App() {
           {/* discover surfaces */}
           <Route path="explore" element={<Explore />} />
           <Route path="categories" element={<Explore />} />
-          <Route path="tv" element={<Browse cat="trending_tv" />} />
-          <Route path="movies" element={<Browse cat="trending_movie" />} />
-          <Route path="anime" element={<Browse cat="trending_anime" />} />
+          <Route path="tv" element={<Browse cat="trending_tv" topLevel />} />
+          <Route path="movies" element={<Browse cat="trending_movie" topLevel />} />
+          <Route path="anime" element={<Browse cat="trending_anime" topLevel />} />
           <Route path="browse/:cat" element={<Browse />} />
           {/* library / add-ons / settings (auth gating applied in Phase 5) */}
           <Route path="library" element={<Library />} />

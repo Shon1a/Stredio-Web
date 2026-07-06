@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { STUDIOS, type Studio } from '../lib/home';
 import { LOGO_BASE } from '../lib/img';
 import { useT } from '../i18n/i18n';
+import Rail from './Rail';
 
 /* Studios logo row — port of studioRowHTML. A rail of studio logo plates; each
  * opens that studio's drill-down (/browse/studio:<key>). Same .studio-card markup
@@ -29,11 +30,7 @@ export default function StudioRow({ onOpen }: { onOpen: (key: string, name: stri
   return (
     <div className="strip reveal in" data-row="studio">
       <div className="strip-head"><span className="strip-title static mono">{t('sec.studios')}</span></div>
-      <div className="strip-rail">
-        <div className="strip-row">
-          {STUDIOS.map((s) => <StudioCard key={s.key} s={s} onOpen={onOpen} />)}
-        </div>
-      </div>
+      <Rail>{STUDIOS.map((s) => <StudioCard key={s.key} s={s} onOpen={onOpen} />)}</Rail>
     </div>
   );
 }

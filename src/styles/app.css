@@ -1262,6 +1262,15 @@
     background:radial-gradient(120% 120% at 50% 42%,rgba(10,10,12,.5),rgba(0,0,0,.82));
     animation:mVeilIn .2s ease both}
   @keyframes mVeilIn{from{opacity:0}to{opacity:1}}
+  /* three-dot loader for the detail veil — dots pulse in sequence */
+  .m-load-dots{display:flex;align-items:center;gap:11px}
+  .m-load-dots span{width:12px;height:12px;border-radius:50%;background:#fff;
+    animation:mDot 1.1s ease-in-out infinite}
+  .m-load-dots span:nth-child(2){animation-delay:.16s}
+  .m-load-dots span:nth-child(3){animation-delay:.32s}
+  @keyframes mDot{0%,70%,100%{opacity:.3;transform:scale(.68)}30%{opacity:1;transform:scale(1)}}
+  @media (prefers-reduced-motion:reduce){.m-load-dots span{animation:mDotStill 1.4s ease-in-out infinite}}
+  @keyframes mDotStill{0%,100%{opacity:.45}50%{opacity:.9}}
   .m-hero-trailer-slot{position:absolute;inset:0;z-index:1}
   /* scale the embed up + center it so YouTube's top title bar / chrome is cropped outside
      the 16:9 hero (the slot is overflow:hidden). Keeps the muted trailer chrome-free. */

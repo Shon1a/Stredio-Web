@@ -365,7 +365,7 @@ export default function DetailModal() {
         </div>
         {!ready && (
           <div className="m-load-veil" role="status" aria-busy="true" aria-label={t('modal.loading_synopsis')}>
-            <span className="sf-loader" aria-hidden="true" />
+            <span className="m-load-dots" aria-hidden="true"><span /><span /><span /></span>
           </div>
         )}
       </div>

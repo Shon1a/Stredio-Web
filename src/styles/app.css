@@ -1255,6 +1255,13 @@
   .m-hero-bg .art img.m-ambient{filter:blur(28px) brightness(.45) saturate(1.1);transform:scale(1.15)}
   .m-hero-bg .art img.m-backdrop{opacity:0;transition:opacity .55s ease}
   .m-hero-bg .art img.m-backdrop.rdy{opacity:1}
+  /* detail loading veil — covers the modal while /api/meta is in flight so the
+     overlay opens already-populated instead of flashing seeded/partial data.
+     Sits above the hero (scrim z2, trailer z1); the ambient poster reads through it. */
+  .m-load-veil{position:absolute;inset:0;z-index:6;display:grid;place-items:center;
+    background:radial-gradient(120% 120% at 50% 42%,rgba(10,10,12,.5),rgba(0,0,0,.82));
+    animation:mVeilIn .2s ease both}
+  @keyframes mVeilIn{from{opacity:0}to{opacity:1}}
   .m-hero-trailer-slot{position:absolute;inset:0;z-index:1}
   /* scale the embed up + center it so YouTube's top title bar / chrome is cropped outside
      the 16:9 hero (the slot is overflow:hidden). Keeps the muted trailer chrome-free. */

@@ -130,7 +130,7 @@ export default function DetailModal() {
   const [lang, setLang] = useState<string>('');
 
   const isTv = target?.type === 'tv' || target?.type === 'series';
-  const { data: meta } = useMeta(target?.id, target?.type);
+  const { data: meta, isError: metaError } = useMeta(target?.id, target?.type);
   const { muted, toggleMute } = useTrailer(slotRef, heroRef, meta?.trailerKey || undefined, meta?.title || target?.title || '');
 
   // reset backdrop fade + scroll on each new title; seed the picked episode from a
@@ -187,6 +187,11 @@ export default function DetailModal() {
   const year = meta?.year ?? target.year;
   const genreChips = meta?.genre ?? (target.genre ? [target.genre] : []);
   const plot = meta ? (meta.plot || meta.tagline || t('modal.no_synopsis')) : t('modal.loading_synopsis');
+  // Hold the reveal until /api/meta lands so the overlay opens already-populated
+  // (backdrop, logo, all genres, synopsis, cast, sources) instead of flashing the
+  // seeded/partial card data. Fall back to seeded content if the fetch errors so it
+  // can never spin forever.
+  const ready = !!meta || metaError;
 
   const epTotal = (meta?.seasonList ?? []).reduce((a, s) => a + (s.episodes || 0), 0);
   const added = mylist.some((m) => String(m.id) === String(target.id));
@@ -289,6 +294,7 @@ export default function DetailModal() {
             <button className="m-mute m-disc" id="mMuteBtn" type="button" aria-pressed={muted} aria-label={t(muted ? 'modal.unmute' : 'modal.mute')} onClick={toggleMute}>
               <span className="m-mute-ic" aria-hidden="true">{muted ? SpeakerOff : SpeakerOn}</span>
             </button>
+            {ready && (
             <div className="m-hero-inner">
               <h2 id="mTitle" className={titleLogo ? 'has-logo' : ''}>
                 {titleLogo ? <img className="title-logo" src={titleLogo} alt={title} /> : title}
@@ -311,8 +317,10 @@ export default function DetailModal() {
                 <button className={`hero-add m-disc${added ? ' on' : ''}`} id="mAdd" type="button" aria-pressed={added} aria-label={t(added ? 'mylist.remove' : 'mylist.add')} onClick={onAdd}>{added ? '✓' : '+'}</button>
               </div>
             </div>
+            )}
           </div>
 
+          {ready && (<>
           {/* BODY */}
           <div className="m-body">
             <div className="m-main">
@@ -353,7 +361,13 @@ export default function DetailModal() {
           </div>
 
           <Recs meta={meta} onOpen={(r) => { scrollRef.current?.scrollTo({ top: 0 }); open({ id: r.id, type: r.type, title: r.title, year: r.year, rating: r.rating, poster: r.poster, seed: 0 }); }} />
+          </>)}
         </div>
+        {!ready && (
+          <div className="m-load-veil" role="status" aria-busy="true" aria-label={t('modal.loading_synopsis')}>
+            <span className="sf-loader" aria-hidden="true" />
+          </div>
+        )}
       </div>
     </div>
   );

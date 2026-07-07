@@ -290,7 +290,6 @@ export default function DetailModal() {
               <span className="m-mute-ic" aria-hidden="true">{muted ? SpeakerOff : SpeakerOn}</span>
             </button>
             <div className="m-hero-inner">
-              <div className="m-kicker" id="mKicker">{t(isTv ? 'modal.now_streaming' : 'modal.now_showing')}</div>
               <h2 id="mTitle" className={titleLogo ? 'has-logo' : ''}>
                 {titleLogo ? <img className="title-logo" src={titleLogo} alt={title} /> : title}
               </h2>

@@ -128,6 +128,7 @@ export default function DetailModal() {
   const [streams, setStreams] = useState<AddonStream[]>([]);
   const [streamsLoading, setStreamsLoading] = useState(false);
   const [lang, setLang] = useState<string>('');
+  const [srcTab, setSrcTab] = useState<'services' | 'addons'>('services');
 
   const isTv = target?.type === 'tv' || target?.type === 'series';
   const { data: meta, isError: metaError } = useMeta(target?.id, target?.type);
@@ -138,6 +139,7 @@ export default function DetailModal() {
   useEffect(() => {
     setBdLoaded(false);
     setPickedEp(target?.resumeEp ? { season: target.resumeEp.season, ep: target.resumeEp.episode } : null);
+    setSrcTab('services');
     scrollRef.current?.scrollTo({ top: 0 });
   }, [target?.id, target?.resumeEp?.season, target?.resumeEp?.episode]);
 
@@ -332,10 +334,30 @@ export default function DetailModal() {
               <div className="m-streams" ref={streamsRef}>
                 <div className="m-rail-head">
                   <h4 className="m-rail-label">{t('modal.streams')}</h4>
-                  {availableLangs.length > 0 && <StreamLangSelect langs={availableLangs} value={lang} onChange={setLang} />}
+                  <div className="m-src-toggle" role="tablist" aria-label={t('modal.streams')}>
+                    <button className={`m-src-tab${srcTab === 'services' ? ' on' : ''}`} type="button" role="tab" aria-selected={srcTab === 'services'} onClick={() => setSrcTab('services')}>{t('modal.tab_streaming')}</button>
+                    <button className={`m-src-tab${srcTab === 'addons' ? ' on' : ''}`} type="button" role="tab" aria-selected={srcTab === 'addons'} onClick={() => setSrcTab('addons')}>{t('modal.tab_addons')}</button>
+                  </div>
+                  {srcTab === 'addons' && availableLangs.length > 0 && <StreamLangSelect langs={availableLangs} value={lang} onChange={setLang} />}
                 </div>
                 <div id="streamList">
-                  {isTv && !pickedEp ? (
+                  {srcTab === 'services' ? (
+                    (() => {
+                      // Max 3 rows — one full-width button per streaming service.
+                      const providers = (meta?.providers ?? []).slice(0, 3);
+                      if (!providers.length) return <div className="demo-note">{t('modal.no_providers')}</div>;
+                      return providers.map((p) => (
+                        <a className="addon-stream m-provider" key={p.id} href={p.link || undefined} target="_blank" rel="noopener noreferrer" aria-label={t('modal.watch_on', { name: p.name })}>
+                          <span className="m-provider-logo" aria-hidden="true">{p.logo && <img src={p.logo} alt="" loading="lazy" decoding="async" />}</span>
+                          <span className="stream-info">
+                            <span className="stream-title">{p.name}</span>
+                            <span className="stream-detail">{t('modal.watch_on', { name: p.name })}</span>
+                          </span>
+                          <span className="addon-stream-chevron" aria-hidden="true">›</span>
+                        </a>
+                      ));
+                    })()
+                  ) : isTv && !pickedEp ? (
                     <div className="demo-note">{t('modal.pick_episode')}</div>
                   ) : streamsLoading ? (
                     <div className="stream-source-label">{t('modal.loading_synopsis')}</div>

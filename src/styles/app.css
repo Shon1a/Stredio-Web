@@ -1594,6 +1594,22 @@
     .addon-stream:hover::after,.addon-stream:focus-visible::after{animation:none;opacity:.7}
   }
 
+  /* Source toggle — "Streaming Services" | "Addon Sources" segmented control */
+  .m-src-toggle{display:inline-flex;flex:0 0 auto;gap:2px;padding:3px;border:1px solid var(--border);
+    border-radius:8px;background:rgba(255,255,255,.04)}
+  .m-src-tab{appearance:none;border:none;background:transparent;color:var(--text-muted);cursor:pointer;
+    font:inherit;font-size:13px;letter-spacing:.02em;padding:6px 12px;border-radius:6px;
+    transition:background .15s,color .15s;white-space:nowrap}
+  .m-src-tab:hover{color:var(--text)}
+  .m-src-tab.on{background:var(--accent);color:var(--ink)}
+  .m-src-tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* Streaming-service buttons reuse .addon-stream sizing/hover; just add the logo tile */
+  .m-provider{text-decoration:none}
+  .m-provider .m-provider-logo{position:relative;z-index:1;flex:0 0 auto;width:38px;height:38px;
+    border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06);display:grid;place-items:center}
+  .m-provider .m-provider-logo img{width:100%;height:100%;object-fit:cover}
+
   .spinner{width:10px;height:10px;border:1.5px solid rgba(255,255,255,.3);border-top-color:var(--accent);
     border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
   @keyframes spin{to{transform:rotate(360deg)}}

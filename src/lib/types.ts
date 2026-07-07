@@ -38,6 +38,8 @@ export interface HeroPayload {
 
 export interface CastMember { name: string; character?: string; profile?: string }
 export interface Creator { name: string; profile?: string }
+/** /api/meta — a "Where to watch" streaming-service button (JustWatch data via TMDB). */
+export interface WatchProvider { id: number; name: string; logo?: string | null; link?: string | null }
 export interface SeasonInfo { season: number; episodes: number; name?: string }
 
 /** /api/meta/:id — the full detail payload (server.js:668). */
@@ -62,6 +64,10 @@ export interface MetaDetail {
   imdb?: string;
   seasons?: number;
   seasonList?: SeasonInfo[];
+  /** "Where to watch" streaming services (JustWatch data via TMDB). */
+  providers?: WatchProvider[];
+  /** JustWatch aggregate link for the title (fallback target). */
+  watchLink?: string | null;
   [k: string]: unknown;
 }
 

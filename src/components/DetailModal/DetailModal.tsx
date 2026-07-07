@@ -241,6 +241,10 @@ export default function DetailModal() {
   const shownStreams = streams
     .filter((s) => !lang || s.langs.includes(lang))
     .sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality));
+  // Each stream row is titled by the open CONTENT — the movie name, or for a series the
+  // show name + chosen episode as `S# · E#` (same format the player subtitle uses). The
+  // add-on's own caption (s.label) drops to the detail line so its release info survives.
+  const streamTitle = isTv && pickedEp ? `${title} · S${pickedEp.season} · E${pickedEp.ep}` : title;
 
   // OPEN plays the top source for the current language; falls back to the bundled demo
   // when no stream add-on is installed / returns nothing.
@@ -330,11 +334,11 @@ export default function DetailModal() {
                     <div className="stream-source-label">{t('modal.loading_synopsis')}</div>
                   ) : shownStreams.length ? (
                     shownStreams.map((s, i) => (
-                      <button className="addon-stream" type="button" key={i} aria-label={s.label} onClick={() => playStream(s)}>
+                      <button className="addon-stream" type="button" key={i} aria-label={streamTitle} onClick={() => playStream(s)}>
                         <span className={`quality-badge ${qualClass(s.quality)}`}>{s.quality || 'SD'}</span>
                         <span className="stream-info">
-                          <span className="stream-title">{s.label}</span>
-                          <span className="stream-detail">{[s.size, s.source].filter(Boolean).join(' · ')}</span>
+                          <span className="stream-title">{streamTitle || s.label}</span>
+                          <span className="stream-detail">{[s.label, s.size, s.source].filter(Boolean).join(' · ')}</span>
                         </span>
                         <span className="addon-stream-chevron" aria-hidden="true">›</span>
                       </button>

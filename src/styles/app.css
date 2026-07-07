@@ -1547,15 +1547,44 @@
   .stream-detail{font-family:var(--font-mono);font-size:13px;color:var(--text-muted);margin-top:2px}
   /* Each add-on-supplied stream object is drawn as one selectable box (not a "play"
      button). Selecting it resolves that source's link. Full-width, left-aligned. */
-  .addon-stream{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  .addon-stream{position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;width:100%;text-align:left;
     padding:10px 12px;border:1px solid var(--border);border-radius:4px;margin-bottom:8px;
     background:var(--card);color:var(--text);cursor:pointer;transition:border-color .15s,background .15s;font:inherit}
   .addon-stream:hover,.addon-stream:focus-visible{border-color:var(--accent);background:rgba(255,255,255,.08);outline:none}
-  .addon-stream .stream-info{flex:1;min-width:0}
+  /* Dribbble "Shift" (Day 171) hover: a minimalist starfield of subtle particles
+     activates on hover for a futuristic, ambient feel. Two absolutely-positioned
+     radial-gradient layers (::before + ::after) twinkle out of phase so the dots
+     shimmer independently rather than pulse in unison — pure CSS, no JS. */
+  .addon-stream::before,.addon-stream::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+    opacity:0;transition:opacity .45s ease}
+  .addon-stream::before{background-image:
+    radial-gradient(1.5px 1.5px at 8% 32%,rgba(255,255,255,.9),transparent 60%),
+    radial-gradient(1px 1px at 22% 74%,rgba(255,255,255,.7),transparent 60%),
+    radial-gradient(1.5px 1.5px at 37% 20%,var(--accent),transparent 60%),
+    radial-gradient(1px 1px at 54% 62%,rgba(255,255,255,.8),transparent 60%),
+    radial-gradient(1.5px 1.5px at 71% 30%,rgba(255,255,255,.6),transparent 60%),
+    radial-gradient(1px 1px at 88% 70%,rgba(255,255,255,.75),transparent 60%)}
+  .addon-stream::after{background-image:
+    radial-gradient(1px 1px at 14% 60%,rgba(255,255,255,.6),transparent 60%),
+    radial-gradient(1.5px 1.5px at 31% 44%,rgba(255,255,255,.8),transparent 60%),
+    radial-gradient(1px 1px at 47% 22%,var(--accent),transparent 60%),
+    radial-gradient(1.5px 1.5px at 63% 78%,rgba(255,255,255,.55),transparent 60%),
+    radial-gradient(1px 1px at 79% 48%,rgba(255,255,255,.85),transparent 60%),
+    radial-gradient(1.5px 1.5px at 95% 26%,rgba(255,255,255,.65),transparent 60%)}
+  .addon-stream:hover::before,.addon-stream:focus-visible::before{opacity:1;animation:stream-twinkle-a 3.2s ease-in-out infinite}
+  .addon-stream:hover::after,.addon-stream:focus-visible::after{opacity:1;animation:stream-twinkle-b 2.6s ease-in-out .4s infinite}
+  @keyframes stream-twinkle-a{0%,100%{opacity:.3;transform:translateY(1px)}50%{opacity:1;transform:translateY(-1px)}}
+  @keyframes stream-twinkle-b{0%,100%{opacity:.9;transform:translateY(-1px)}50%{opacity:.35;transform:translateY(1px)}}
+  .addon-stream .quality-badge{position:relative;z-index:1}
+  .addon-stream .stream-info{position:relative;z-index:1;flex:1;min-width:0}
   .addon-stream .stream-title{display:block;font-size:16px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .addon-stream .stream-detail{display:block;font-family:var(--font-mono);font-size:13px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .addon-stream-chevron{flex-shrink:0;color:var(--text-muted);font-size:20px;line-height:1}
+  .addon-stream-chevron{position:relative;z-index:1;flex-shrink:0;color:var(--text-muted);font-size:20px;line-height:1}
   .addon-stream:hover .addon-stream-chevron{color:var(--accent)}
+  @media (prefers-reduced-motion:reduce){
+    .addon-stream:hover::before,.addon-stream:focus-visible::before,
+    .addon-stream:hover::after,.addon-stream:focus-visible::after{animation:none;opacity:.7}
+  }
 
   .spinner{width:10px;height:10px;border:1.5px solid rgba(255,255,255,.3);border-top-color:var(--accent);
     border-radius:50%;animation:spin .7s linear infinite;display:inline-block}

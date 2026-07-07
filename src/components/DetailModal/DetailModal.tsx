@@ -209,7 +209,7 @@ export default function DetailModal() {
   const subsOf = (s: AddonStream) => s.subtitles?.map((x) => ({ lang: x.lang, label: x.lang || 'Subtitle', url: x.url }));
   // series context for the in-player episodes panel (only for a series episode)
   const seriesFor = (ep: Ep | null) => (ep && meta?.seasonList?.length
-    ? { seasons: meta.seasonList, metaId: target.id, season: ep.season, ep: ep.ep, title, playEp: (s: number, e: number) => { void playEpisode(s, e); } }
+    ? { seasons: meta.seasonList, metaId: target.id, imdb: meta.imdb, season: ep.season, ep: ep.ep, title, playEp: (s: number, e: number) => { void playEpisode(s, e); } }
     : undefined);
   const playStreamFor = (s: AddonStream, ep: Ep | null) => {
     const nxt = nextEpOf(ep);

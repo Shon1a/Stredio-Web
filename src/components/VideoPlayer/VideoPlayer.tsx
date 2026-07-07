@@ -5,7 +5,12 @@ import { useSettings } from '../../stores/settings';
 import { useT } from '../../i18n/i18n';
 import { loadHls, isHlsUrl, type HlsInstance } from '../../lib/hls';
 import { toVttBlobUrl } from '../../lib/subtitles';
+import { apiFetch } from '../../lib/api';
 import EpisodePanel from './EpisodePanel';
+
+// skip-intro heuristic window (s) + credits-tail length when no IntroDB markers exist
+const INTRO_FROM = 8, INTRO_TO = 92, CREDITS_TAIL = 35;
+interface Segments { intro?: { start: number; end: number }; outro?: { start: number; end: number } }
 
 const IcEpisodes = <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M4 5h16v2H4zM4 11h16v2H4zM4 17h10v2H4z" /></svg>;
 
@@ -113,6 +118,7 @@ export default function VideoPlayer() {
   const [hideUi, setHideUi] = useState(false);
   const [vtt, setVtt] = useState<Array<{ lang: string; label: string; url: string }>>([]);
   const [epPanelOpen, setEpPanelOpen] = useState(false);
+  const [segments, setSegments] = useState<Segments | null>(null);
   const ccOn = currentSub >= 0;
 
   // attach the source (HLS via hls.js, else native)
@@ -202,6 +208,20 @@ export default function VideoPlayer() {
     setCurrentSub(shown);
   }, [vtt, settings.subLang]);
 
+  // IntroDB intro/outro markers for the current episode (best-effort; the skip button
+  // falls back to the heuristic window when there are none)
+  useEffect(() => {
+    setSegments(null);
+    const s = source?.series;
+    if (!s?.imdb) return;
+    let alive = true;
+    apiFetch(`/api/introdb/${encodeURIComponent(s.imdb)}/${s.season}/${s.ep}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d && (d.intro || d.outro)) setSegments(d); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [source?.series]);
+
   const bump = useCallback(() => {
     setHideUi(false);
     window.clearTimeout(hideTimer.current);
@@ -285,6 +305,21 @@ export default function VideoPlayer() {
   const ow = settings.subOutlineW, oc = settings.subOutline;
   const cueOutline = ow > 0 ? `text-shadow:${-ow}px ${-ow}px 0 ${oc},${ow}px ${-ow}px 0 ${oc},${-ow}px ${ow}px 0 ${oc},${ow}px ${ow}px 0 ${oc};` : '';
   const cueCss = `#playerVideo::cue{color:${settings.subColor};background-color:${settings.subBg};font-size:${settings.subSize}%;${cueOutline}}`;
+
+  // contextual skip button: "Skip Intro" in the intro window, "Next Episode" in the
+  // credits tail — IntroDB markers when available, else the heuristic (series, 5min+)
+  let skipMode: 'intro' | 'next' | null = null;
+  let skipTo = INTRO_TO;
+  if (source.series && dur >= 300) {
+    const intro = segments?.intro && segments.intro.end < dur ? segments.intro : null;
+    const outroStart = segments?.outro && segments.outro.start > 0 && segments.outro.start < dur ? segments.outro.start : null;
+    const nextAt = outroStart != null ? outroStart : dur - CREDITS_TAIL;
+    if (source.next && cur >= nextAt && dur - cur > 0.5) skipMode = 'next';
+    else {
+      const inIntro = intro ? (cur >= intro.start && cur <= intro.end) : (cur >= INTRO_FROM && cur <= INTRO_TO);
+      if (inIntro) { skipMode = 'intro'; skipTo = intro ? intro.end : INTRO_TO; }
+    }
+  }
 
   return (
     <div
@@ -482,10 +517,20 @@ export default function VideoPlayer() {
         </div>
       </div>
 
-      {/* Next-episode button — appears near the end for a series with a next episode */}
-      {source.next && (
-        <button className={`vp-skip${dur > 0 && cur > dur - 40 ? ' show' : ''}`} id="vpSkip" type="button" onClick={() => source.next?.()}>
-          {t('player.next_episode')} ›
+      {/* Contextual skip button — "Skip Intro" in the intro window, "Next Episode" in
+          the credits tail (series only) */}
+      {source.series && (
+        <button
+          className={`vp-skip${skipMode ? ' show' : ''}`}
+          id="vpSkip"
+          type="button"
+          onClick={() => {
+            if (skipMode === 'next') source.next?.();
+            else if (skipMode === 'intro') { const v = videoRef.current; if (v) v.currentTime = Math.min((v.duration || 0) - 1, Math.max(v.currentTime, skipTo)); }
+            bump();
+          }}
+        >
+          {skipMode === 'next' ? `${t('player.next_episode')} ›` : skipMode === 'intro' ? t('player.skip_intro') : ''}
         </button>
       )}
 

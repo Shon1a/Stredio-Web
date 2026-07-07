@@ -12,6 +12,10 @@ export function useHome() {
   return useQuery({
     queryKey: ['home', lang],
     queryFn: () => api<HomePayload>(`/api/home?lang=${encodeURIComponent(lang)}`),
+    // admin-editable content (covers, titles, Featured Hero) — mirror the API's
+    // max-age=60 and refresh on tab focus so admin edits appear within ~a minute
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -51,6 +55,9 @@ export function useMeta(id: string | number | undefined, type?: MediaItem['type'
       if (type === 'tv' || type === 'series') p.set('type', 'tv');
       return api<MetaDetail>(`/api/meta/${id}?${p}`);
     },
+    // admin cover/title overrides — refresh quickly instead of caching 10 min
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 }
 

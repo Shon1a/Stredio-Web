@@ -11,6 +11,7 @@ import { useTrailer } from './useTrailer';
 import EpisodeChooser from './EpisodeChooser';
 import StreamLangSelect from './StreamLangSelect';
 import { collectAddonStreams, orderLangs, qualityRank, type AddonStream } from '../../lib/addonClient';
+import { pickWatchServices } from '../../lib/watchProviders';
 
 const qualClass = (q: string) => (q === '4K' ? 'q-4k' : q === '1080p' ? 'q-1080' : 'q-720');
 
@@ -343,11 +344,12 @@ export default function DetailModal() {
                 <div id="streamList">
                   {srcTab === 'services' ? (
                     (() => {
-                      // Max 3 rows — one full-width button per streaming service.
-                      const providers = (meta?.providers ?? []).slice(0, 3);
-                      if (!providers.length) return <div className="demo-note">{t('modal.no_providers')}</div>;
-                      return providers.map((p) => (
-                        <a className="addon-stream m-provider" key={p.id} href={p.link || undefined} target="_blank" rel="noopener noreferrer" aria-label={t('modal.watch_on', { name: p.name })}>
+                      // One full-width button per major streaming service, each linking
+                      // straight into the platform (never TMDB) — see watchProviders.ts.
+                      const services = pickWatchServices(meta?.providers, title);
+                      if (!services.length) return <div className="demo-note">{t('modal.no_providers')}</div>;
+                      return services.map((p) => (
+                        <a className="addon-stream m-provider" key={p.key} href={p.link} target="_blank" rel="noopener noreferrer" aria-label={t('modal.watch_on', { name: p.name })}>
                           <span className="m-provider-logo" aria-hidden="true">{p.logo && <img src={p.logo} alt="" loading="lazy" decoding="async" />}</span>
                           <span className="stream-info">
                             <span className="stream-title">{p.name}</span>

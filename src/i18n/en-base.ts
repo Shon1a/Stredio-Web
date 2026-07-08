@@ -396,6 +396,8 @@ export const EN_BASE: Record<string, string> = {
   "player.pip_unavailable": "Picture-in-picture unavailable",
   "player.cant_play": "✕ This file can’t play in the browser",
   "player.cant_play_sub": "Many .mkv files use codecs browsers can’t decode. Pick a 1080p .mp4 source from the ⚙ Quality menu, or use “↗ Open in” for an external player.",
+  "player.source_unavailable": "✕ This source is unavailable",
+  "player.source_unavailable_sub": "The stream host didn’t respond — it may be offline or the link has expired. Try another source.",
   "player.no_audio_hint": "⊘ No audio — this source’s codec (AC3/DTS) isn’t supported. Try another source (⚙) or ↗ Open in a player.",
   "player.seek_buffering": "◷ Still buffering — can’t skip past the loaded part yet.",
   "player.trying_next": "↻ Trying another source ({n}/{total})…",

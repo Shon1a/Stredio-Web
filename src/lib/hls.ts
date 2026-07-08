@@ -5,11 +5,14 @@
 interface HlsCtor {
   new (config?: unknown): HlsInstance;
   isSupported(): boolean;
+  ErrorTypes: { NETWORK_ERROR: string; MEDIA_ERROR: string };
 }
 export interface HlsInstance {
   loadSource(url: string): void;
   attachMedia(el: HTMLVideoElement): void;
   destroy(): void;
+  startLoad(): void;          // resume loading after a recoverable network error
+  recoverMediaError(): void;  // re-init the media pipeline after a media error
   on(event: string, cb: (...args: unknown[]) => void): void;
   levels: Array<{ height?: number; width?: number; bitrate?: number }>;
   currentLevel: number;

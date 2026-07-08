@@ -109,6 +109,9 @@ export default function VideoPlayer() {
   const [levels, setLevels] = useState<Level[]>([]);
   const [curLevel, setCurLevel] = useState(-1);
   const [loading, setLoading] = useState(true);
+  // null = no error; 'source' = stream host unreachable (network/manifest — try another
+  // source); 'codec' = file loaded but the browser can't decode it (mkv/AC3…)
+  const [errKind, setErrKind] = useState<null | 'source' | 'codec'>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentSub, setCurrentSub] = useState(-1); // -1 = subtitles off
   const [audioTracks, setAudioTracks] = useState<Array<{ i: number; name: string }>>([]);
@@ -127,17 +130,45 @@ export default function VideoPlayer() {
     if (!v || !source) return;
     let cancelled = false;
     recordedRef.current = false; resumedRef.current = false; lastProgRef.current = 0;
-    setLoading(true); setPlaying(false); setCur(0); setDur(0); setBuffered(0); setLevels([]); setCurLevel(-1); setMenuOpen(false); setHideUi(false); setAudioTracks([]); setCurAudio(0); setEpPanelOpen(false);
+    setLoading(true); setErrKind(null); setPlaying(false); setCur(0); setDur(0); setBuffered(0); setLevels([]); setCurLevel(-1); setMenuOpen(false); setHideUi(false); setAudioTracks([]); setCurAudio(0); setEpPanelOpen(false);
     const url = source.url;
-    const nativeHls = v.canPlayType('application/vnd.apple.mpegurl');
-    const useHls = (source.kind === 'hls' || isHlsUrl(url)) && !nativeHls;
+    // Prefer hls.js for any HLS source. DON'T gate on canPlayType('…mpegurl'):
+    // modern Chrome returns "maybe" for that MIME type yet CANNOT actually play HLS
+    // (no native demuxer) — trusting it sent every HLS stream down the native path and
+    // stalled on a black screen. Native HLS is only a fallback for Safari/iOS, where
+    // hls.js reports isSupported()===false.
+    const isHls = source.kind === 'hls' || isHlsUrl(url);
+    const canNativeHls = !!v.canPlayType('application/vnd.apple.mpegurl');
 
-    if (useHls) {
+    if (isHls) {
       loadHls().then((Hls) => {
         if (cancelled || !v) return;
         if (Hls && Hls.isSupported()) {
-          const hls = new Hls();
+          // Buffer well ahead (and keep a long back-buffer) so rewinds / short
+          // forward-seeks land in already-loaded video instead of stalling and
+          // snapping back; generous manifest/level timeouts for slow add-on hosts.
+          const hls = new Hls({ maxBufferLength: 60, maxMaxBufferLength: 600, backBufferLength: 180, manifestLoadingTimeOut: 20000, levelLoadingTimeOut: 20000 });
           hlsRef.current = hls;
+          // Recover from fatal-but-recoverable errors instead of stalling forever on
+          // the loading spinner — the #1 reason some add-on streams never started.
+          const fail = () => { try { hls.destroy(); } catch { /* ignore */ } setLoading(false); setErrKind('source'); };
+          let fragTries = 0, mediaTries = 0;
+          hls.on('hlsError', (...a: unknown[]) => {
+            const data = a[1] as { fatal?: boolean; type?: string; details?: string } | undefined;
+            if (!data || !data.fatal) return;
+            const d = data.details || '';
+            // A playlist that can't be fetched/parsed (upstream 403, expired token, dead
+            // host) is terminal — startLoad() only resumes FRAGMENT loading, not the
+            // manifest, so retrying here just hangs on a black screen. Surface it.
+            if (/manifestLoad|manifestParsing|manifestIncompatible|levelLoad|levelEmpty|noLevelsAvailable/i.test(d)) { fail(); return; }
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              if (fragTries++ >= 3) { fail(); return; }   // fragments keep failing → give up
+              try { hls.startLoad(); } catch { fail(); }
+            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              if (mediaTries++ >= 2) { fail(); return; }
+              try { hls.recoverMediaError(); } catch { fail(); }
+            } else { fail(); }
+          });
           hls.loadSource(url);
           hls.attachMedia(v);
           hls.on('hlsManifestParsed', () => {
@@ -163,11 +194,15 @@ export default function VideoPlayer() {
           hls.on('hlsAudioTracksUpdated', () => {
             if (hls.audioTracks && hls.audioTracks.length > 1) { setAudioTracks(hls.audioTracks.map((a, i) => ({ i, name: audioName(a, i) }))); setCurAudio(hls.audioTrack); }
           });
-        } else {
+        } else if (canNativeHls) {
+          // Safari / iOS: real native HLS playback.
           v.src = url; v.play().catch(() => {});
+        } else {
+          setLoading(false); setErrKind('source');
         }
       });
     } else {
+      // progressive file (mp4/webm/…) — native playback
       v.src = url; v.play().catch(() => {});
     }
 
@@ -340,7 +375,6 @@ export default function VideoPlayer() {
         id="playerVideo"
         ref={videoRef}
         playsInline
-        crossOrigin="anonymous"
         style={{ filter: settings.enhance && settings.clarity > 0 ? 'url(#vpSharpen)' : undefined }}
         onLoadedMetadata={(e) => {
           const v = e.currentTarget;
@@ -373,8 +407,9 @@ export default function VideoPlayer() {
         }}
         onPause={() => { setPlaying(false); setHideUi(false); }}
         onWaiting={() => setLoading(true)}
-        onPlaying={() => setLoading(false)}
-        onCanPlay={() => setLoading(false)}
+        onPlaying={() => { setLoading(false); setErrKind(null); }}
+        onCanPlay={() => { setLoading(false); setErrKind(null); }}
+        onError={() => { setLoading(false); setErrKind((k) => k ?? 'codec'); }}
         onVolumeChange={(e) => { setVol(e.currentTarget.volume); setMuted(e.currentTarget.muted); }}
         onEnded={() => { setPlaying(false); if (settings.autoplayNext && source.next) source.next(); }}
       >
@@ -388,11 +423,18 @@ export default function VideoPlayer() {
 
       <div className="vp-grain" id="vpGrain" aria-hidden="true" />
 
-      {loading && (
-        <div className="vp-loading" id="vpLoading" role="status" aria-live="polite">
+      {loading && !errKind && (
+        <div className="vp-loading show" id="vpLoading" role="status" aria-live="polite">
           {Worm}
           <div className="lt">{t('player.preparing')}</div>
           <div className="ls" />
+        </div>
+      )}
+
+      {errKind && (
+        <div className="vp-loading show" id="vpError" role="alert" aria-live="assertive">
+          <div className="lt">{t(errKind === 'source' ? 'player.source_unavailable' : 'player.cant_play')}</div>
+          <div className="ls" style={{ opacity: 0.75, maxWidth: 420, textAlign: 'center' }}>{t(errKind === 'source' ? 'player.source_unavailable_sub' : 'player.cant_play_sub')}</div>
         </div>
       )}
 

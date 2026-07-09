@@ -591,6 +591,22 @@
   .strip-arrow:disabled{pointer-events:none}
   .strip-arrow:disabled svg{opacity:.28}
   @media(hover:none){.strip-arrow{display:none}}  /* touch: swipe to scroll */
+  /* add-on catalog rows are fetched client-side after the built-in rows, so their card
+     data arrives late. While a catalog is in flight, CatalogRow renders a reserved-height
+     skeleton (AddonRows.tsx) that reuses the exact .strip / Rail / .pcard boxes so the row
+     already occupies its final height — the real posters then fill in place with zero
+     reflow, instead of the whole row appending above the footer and shifting it (CLS). */
+  .addon-skel{pointer-events:none}
+  /* pure-black canvas (--bg-3 is #000), so the placeholder is a faint white wash with a
+     brighter sweep — reads as a shimmering "loading" tile, not an empty black gap. */
+  /* .addon-skel-scoped so this two-class selector outranks .poster{background:var(--bg-3)}
+     (defined just below) on the skeleton poster tile — otherwise the box paints pure black. */
+  .addon-skel .skel-box{background:linear-gradient(100deg,rgba(255,255,255,.08) 30%,rgba(255,255,255,.20) 50%,rgba(255,255,255,.08) 70%);
+    background-color:rgba(255,255,255,.08);background-size:200% 100%;animation:skelShimmer 1.4s linear infinite}
+  .addon-skel .pcard .cap .skel-line{height:12px;border-radius:4px}
+  .addon-skel .pcard .cap .skel-line.short{width:58%;height:10px;margin-top:12px}
+  @keyframes skelShimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+  @media(prefers-reduced-motion:reduce){.addon-skel .skel-box{animation:none;background:rgba(255,255,255,.06)}}
   .poster{flex:0 0 auto;width:200px;height:300px;border-radius:12px;position:relative;overflow:hidden;
     border:1px solid var(--border);cursor:pointer;transition:transform .28s cubic-bezier(.2,.7,.2,1),box-shadow .28s,border-color .28s;scroll-snap-align:start;background:var(--bg-3)}
   .poster:hover{box-shadow:0 14px 34px rgba(0,0,0,.55);border-color:rgba(255,255,255,.4)}

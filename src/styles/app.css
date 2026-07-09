@@ -451,6 +451,11 @@
   @keyframes heroDotFill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
   .hero.paused .hero-thumb.active::after,
   .hero.paused .hero-slide.active .hero-bg{animation-play-state:paused}
+  /* autohold: freeze the advance clock until the first interaction so the carousel
+     doesn't paint a new full-viewport backdrop (a fresh LCP candidate) every 4s before
+     the visitor engages — see Hero.tsx. Only the thumb-fill clock is held; the active
+     slide's Ken Burns keeps drifting so the hero still feels alive while it waits. */
+  .hero.autohold .hero-thumb.active::after{animation-play-state:paused}
   @media(max-width:640px){
     /* smaller reserve (tighter headings/margins on phones) so both upcoming rows
        still clear the fold under a typical mobile viewport — slimmer rails let the

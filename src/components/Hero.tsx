@@ -215,6 +215,23 @@ export default function Hero({ items, onPlay, onAdd }: HeroProps) {
     const raf = requestAnimationFrame(layout);
     setActiveSlide(0);
 
+    // Hold autoplay until the first real interaction. Each auto-advance rotates a fresh
+    // full-viewport backdrop into view, and ensureSlideBg paints it for the first time —
+    // a new Largest Contentful Paint candidate every 4s, so LCP kept climbing (8–11s in
+    // the panel) even though slide 0 already paints at ~1.6s. Holding on slide 0 lets LCP
+    // settle on that first paint; the visitor's first pointer/key/wheel/scroll both
+    // finalizes LCP and releases autoplay for the rest of the session. (The `autohold`
+    // class only pauses the thumb-fill clock that drives the advance — see app.css.)
+    root.classList.add('autohold');
+    let engaged = false;
+    // genuine user gestures only — NOT 'scroll', which also fires from programmatic
+    // scrolls (e.g. the thumb strip's scrollTo in setActiveSlide) and would release the
+    // hold instantly. 'wheel' already covers real scroll intent.
+    const engageEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
+    const offEngage = () => engageEvents.forEach((ev) => window.removeEventListener(ev, engage));
+    function engage() { if (engaged) return; engaged = true; root.classList.remove('autohold'); offEngage(); }
+    engageEvents.forEach((ev) => window.addEventListener(ev, engage, { passive: true }));
+
     // ---- wiring ----
     const onAnim = (e: AnimationEvent) => { if (e.animationName === 'heroDotFill') go(c.i + 1); };
     const pause = (p: boolean) => root.classList.toggle('paused', p);
@@ -280,6 +297,7 @@ export default function Hero({ items, onPlay, onAdd }: HeroProps) {
 
     return () => {
       cancelAnimationFrame(raf);
+      offEngage();
       root.removeEventListener('animationend', onAnim);
       root.removeEventListener('mouseenter', onEnter);
       root.removeEventListener('mouseleave', onLeave);

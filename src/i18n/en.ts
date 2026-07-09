@@ -22,7 +22,14 @@ const SEED: Record<string, string> = {
   'nav.mylist': 'My List',
   'nav.search': 'Search',
   'nav.anime': 'Anime',
-  'nav.categories': 'Categories',
+  'nav.categories': 'Category',
+
+  // Categories hub page
+  'cathub.title': 'Browse by category',
+  'cathub.sub': 'Jump straight into a collection, a genre, or a streaming service.',
+  'cathub.collections': 'Collections',
+  'cathub.genres': 'Genres',
+  'cathub.networks': 'Networks',
   'nav.watch_head': 'WATCH',
   'nav.menu': 'BROWSE',
   'nav.catalog': 'Catalog',

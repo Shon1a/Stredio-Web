@@ -9,6 +9,7 @@ import { initHeartCatalog } from './lib/heartCatalog';
 import AppShell from './layout/AppShell';
 import Home from './routes/Home';
 import Explore from './routes/Explore';
+import Categories from './routes/Categories';
 import Browse from './routes/Browse';
 import Library from './routes/Library';
 import Addons from './routes/Addons';
@@ -50,7 +51,7 @@ export default function App() {
           <Route index element={<Home />} />
           {/* discover surfaces */}
           <Route path="explore" element={<Explore />} />
-          <Route path="categories" element={<Explore />} />
+          <Route path="categories" element={<Categories />} />
           <Route path="tv" element={<Browse cat="trending_tv" topLevel />} />
           <Route path="movies" element={<Browse cat="trending_movie" topLevel />} />
           <Route path="anime" element={<Browse cat="trending_anime" topLevel />} />

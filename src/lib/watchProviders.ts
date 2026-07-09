@@ -1,9 +1,11 @@
 import type { WatchProvider } from './types';
 
 /* "Where to watch" — we only surface the eight major streaming services below, and
- * each button links straight into the real platform (a title search on the service
- * itself) instead of TMDB/JustWatch's redirect page. Providers are matched against
- * TMDB's provider names by keyword so channel variants ("HBO Max Amazon Channel",
+ * each button links straight into the real platform. The server resolves a DIRECT
+ * title deep link per service (via JustWatch, e.g. netflix.com/title/81605886) and
+ * hands it back as the provider's `link`; we use that when present and fall back to
+ * the platform's own title search otherwise. Providers are matched against TMDB's
+ * provider names by keyword so channel variants ("HBO Max Amazon Channel",
  * "Paramount+ with Showtime", "Apple TV Plus") collapse onto the canonical service. */
 
 type Spec = { key: string; name: string; match: RegExp; search: (q: string) => string };
@@ -23,15 +25,16 @@ const SERVICES: Spec[] = [
 export interface WatchService { key: string; name: string; logo?: string | null; link: string }
 
 /** Keep only the eight canonical services (in display order), collapse channel
- *  variants onto one row each, and point every link at the platform's own search
- *  page for `title` — never TMDB. */
+ *  variants onto one row each, and link each to the server's direct title deep
+ *  link when available — otherwise the platform's own search page for `title`.
+ *  Never TMDB. */
 export function pickWatchServices(providers: WatchProvider[] | undefined, title: string): WatchService[] {
   const q = encodeURIComponent((title || '').trim());
   const out: WatchService[] = [];
   for (const spec of SERVICES) {
     const hit = (providers ?? []).find((p) => spec.match.test(p.name || ''));
     if (!hit) continue;
-    out.push({ key: spec.key, name: spec.name, logo: hit.logo, link: spec.search(q) });
+    out.push({ key: spec.key, name: spec.name, logo: hit.logo, link: hit.link || spec.search(q) });
   }
   return out;
 }

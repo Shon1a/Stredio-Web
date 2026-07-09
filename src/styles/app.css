@@ -128,12 +128,17 @@
       border-radius:0 3px 3px 0;background:#fff}
     .rail-ic{flex:0 0 30px;width:30px;display:grid;place-items:center}
     .rail-ic svg{width:22px;height:22px;display:block}
+    /* PNG rail glyphs: black source art rendered white; muted until hover/active */
+    .rail-ic img{width:22px;height:22px;display:block;object-fit:contain;
+      filter:brightness(0) invert(1);opacity:.62;transition:opacity .18s ease}
+    .rail-item:hover .rail-ic img,.rail-item.active .rail-ic img{opacity:1}
     .rail-lbl{font-size:15px;font-weight:600;letter-spacing:.01em;opacity:0;transform:translateX(-6px);
       transition:opacity .2s ease,transform .2s ease}
     .railbar:hover .rail-lbl,.railbar:focus-within .rail-lbl{opacity:1;transform:none}
     /* My Space renders its glyph in a subtle disc, like an avatar chip */
     .rail-myspace .rail-ic{background:rgba(255,255,255,.10);border-radius:50%;width:32px;height:32px;flex-basis:32px}
     .rail-myspace .rail-ic svg{width:18px;height:18px}
+    .rail-myspace .rail-ic img{width:18px;height:18px}
     .rail-myspace{margin-left:-1px;margin-top:16px}
 
     /* desktop shell: push content past the rail, drop the top category strip + duplicate logo */
@@ -727,6 +732,121 @@
     #explore .explore-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:24px 14px}
     #catGrid.cat-wide{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:24px 14px}
   }
+
+  /* ---------- Categories hub — the "browse by category" page ----------
+     Not a title grid: each card IS a category (collection / genre / network). A
+     signed duotone glass tile — per-category hue (--h1 light → --h2 deep) + a big
+     line-art watermark glyph — that drills into the matching grid. No posters load
+     here, so the page paints instantly. */
+  .cat-hub{max-width:1440px;margin:0 auto}
+  .cathub-head{margin:2px 0 8px}
+  .cathub-eyebrow{display:inline-block;font-size:12px;letter-spacing:.34em;text-transform:uppercase;
+    color:var(--text-muted);margin-bottom:12px}
+  .cathub-title{font-size:clamp(30px,5vw,52px);font-weight:300;letter-spacing:-.02em;line-height:1.02;
+    background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .cathub-sub{margin-top:12px;color:var(--text-muted);font-size:clamp(14px,1.4vw,17px);max-width:560px}
+  .cathub-sec{margin-top:40px}
+  .cathub-sectitle{font-size:13px;letter-spacing:.24em;text-transform:uppercase;color:var(--text-muted);
+    margin:0 0 16px;font-family:var(--font-mono)}
+
+  /* shared card */
+  .catcard{position:relative;overflow:hidden;isolation:isolate;display:block;width:100%;text-align:left;
+    cursor:pointer;border-radius:18px;border:1px solid rgba(255,255,255,.10);padding:18px;color:#fff;
+    background:#0f0f12;   /* fallback when color-mix is unsupported */
+    background:
+      radial-gradient(120% 120% at 82% 12%, color-mix(in srgb, var(--h1) 58%, transparent) 0%, transparent 56%),
+      linear-gradient(155deg, color-mix(in srgb, var(--h2) 82%, #000) 0%, #0a0a0a 78%);
+    box-shadow:0 10px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+    transition:transform .28s cubic-bezier(.16,.84,.44,1), box-shadow .28s, border-color .28s}
+  .catcard:hover{transform:translateY(-6px);border-color:color-mix(in srgb, var(--h1) 55%, transparent);
+    box-shadow:0 22px 52px rgba(0,0,0,.6), 0 0 0 1px color-mix(in srgb, var(--h1) 30%, transparent),
+      inset 0 1px 0 rgba(255,255,255,.10)}
+  .catcard:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+  /* big watermark glyph, tinted with the card's own light hue */
+  .catcard-ico{position:absolute;right:-8px;top:-10px;width:56%;max-width:132px;aspect-ratio:1;
+    color:color-mix(in srgb, var(--h1) 88%, #fff 12%);opacity:.16;transform:rotate(-8deg);
+    pointer-events:none;transition:transform .35s cubic-bezier(.16,.84,.44,1), opacity .35s}
+  .catcard-ico svg{width:100%;height:100%;display:block}
+  .catcard:hover .catcard-ico{transform:rotate(-3deg) scale(1.08);opacity:.3}
+
+  .catcard-body{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .catcard-name{font-size:clamp(15px,1.4vw,19px);font-weight:600;letter-spacing:-.01em;line-height:1.16}
+  .catcard-go{flex:0 0 auto;width:26px;height:26px;display:grid;place-items:center;border-radius:50%;
+    font-size:14px;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);
+    transform:translateX(-4px);opacity:0;transition:opacity .25s, transform .25s}
+  .catcard:hover .catcard-go{opacity:1;transform:none}
+
+  /* diagonal light sweep on hover */
+  .catcard-sheen{position:absolute;inset:0;z-index:3;pointer-events:none;
+    background:linear-gradient(115deg, transparent 32%, rgba(255,255,255,.14) 48%, transparent 64%);
+    transform:translateX(-120%);transition:transform .6s ease}
+  .catcard:hover .catcard-sheen{transform:translateX(120%)}
+
+  /* blended backdrop collage — a strip of real stills melting into the hue
+   * gradient. Sits at the very back; the scrim + label ride on top of it. */
+  .catcard-art{position:absolute;inset:0;z-index:0;display:flex;justify-content:flex-end;
+    overflow:hidden;animation:artIn .6s ease both;
+    transition:transform .35s cubic-bezier(.16,.84,.44,1)}
+  .catcard-shot{flex:1 1 0;min-width:0;background-size:cover;background-position:50% 40%;
+    filter:saturate(1.06) contrast(1.02);
+    -webkit-mask-image:linear-gradient(90deg, transparent 0%, #000 36%);
+    mask-image:linear-gradient(90deg, transparent 0%, #000 36%)}
+  .catcard-shot + .catcard-shot{margin-left:-7%}   /* overlap so seams dissolve */
+  .catcard.has-art:hover .catcard-art{transform:scale(1.05)}
+  /* with real art the line-art watermark just clutters — drop it */
+  .catcard.has-art .catcard-ico{display:none}
+  @keyframes artIn{from{opacity:0}to{opacity:1}}
+
+  /* legibility + brand tint over the collage: dark wash from the bottom-left
+   * corner (where the label sits) fading out toward the top-right imagery,
+   * plus a soft hue glow so each card keeps its signature colour. */
+  .catcard-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--h2) 94%, #000) 0%,
+        color-mix(in srgb, var(--h2) 60%, #000 40%) 24%, transparent 68%),
+      linear-gradient(0deg, rgba(0,0,0,.88) 0%, rgba(0,0,0,.32) 36%, transparent 70%),
+      radial-gradient(135% 130% at 90% 6%, color-mix(in srgb, var(--h1) 40%, transparent) 0%, transparent 56%)}
+
+  /* collection tiles — bigger, cinematic */
+  .cathero-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:18px}
+  .catcard-lg{min-height:158px;display:flex;flex-direction:column;justify-content:flex-end}
+  .catcard-lg .catcard-name{font-size:clamp(18px,1.7vw,23px)}
+  .catcard-lg .catcard-ico{width:52%;max-width:150px}
+
+  /* genre wall */
+  .catcard-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:16px}
+  .catcard-grid .catcard{min-height:116px;display:flex;flex-direction:column;justify-content:flex-end}
+
+  /* networks — denser + flatter */
+  .catcard-grid-net{grid-template-columns:repeat(auto-fill,minmax(158px,1fr))}
+  .catcard-net{min-height:92px}
+  .catcard-net .catcard-ico{opacity:.12;max-width:104px}
+
+  /* staggered entrance — reuses the drill-down cardRise keyframes */
+  .cat-hub .catcard{animation:cardRise .5s cubic-bezier(.16,.84,.44,1) both}
+  .cat-hub .catcard:nth-child(1){animation-delay:0s}
+  .cat-hub .catcard:nth-child(2){animation-delay:.04s}
+  .cat-hub .catcard:nth-child(3){animation-delay:.08s}
+  .cat-hub .catcard:nth-child(4){animation-delay:.12s}
+  .cat-hub .catcard:nth-child(5){animation-delay:.16s}
+  .cat-hub .catcard:nth-child(6){animation-delay:.2s}
+  .cat-hub .catcard:nth-child(7){animation-delay:.24s}
+  .cat-hub .catcard:nth-child(8){animation-delay:.28s}
+  .cat-hub .catcard:nth-child(n+9){animation-delay:.32s}
+
+  @media(max-width:900px){
+    .cathub-sec{margin-top:30px}
+    .cathero-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+    .catcard-lg{min-height:128px}
+    .catcard{padding:14px;border-radius:15px}
+    .catcard-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+    .catcard-grid .catcard{min-height:100px}
+    .catcard-grid-net{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+    /* the go-arrow is a hover affordance — hide on touch where there's no hover */
+    .catcard-go{display:none}
+  }
+
   /* home rails — gentle opacity fade so cards arrive smoothly (no transform → the rail's
      overflow:hidden can never clip the entrance) */
   .strip-row>*{animation:cardFade .5s ease both}
@@ -1558,40 +1678,31 @@
   .addon-stream{position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;width:100%;text-align:left;
     padding:10px 12px;border:1px solid var(--border);border-radius:4px;margin-bottom:8px;
     background:var(--card);color:var(--text);cursor:pointer;transition:border-color .15s,background .15s;font:inherit}
-  .addon-stream:hover,.addon-stream:focus-visible{border-color:var(--accent);background:rgba(255,255,255,.08);outline:none}
-  /* Dribbble "Shift" (Day 171) hover: a minimalist starfield of subtle particles
-     activates on hover for a futuristic, ambient feel. Two absolutely-positioned
-     radial-gradient layers (::before + ::after) twinkle out of phase so the dots
-     shimmer independently rather than pulse in unison — pure CSS, no JS. */
-  .addon-stream::before,.addon-stream::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
-    opacity:0;transition:opacity .45s ease}
-  .addon-stream::before{background-image:
-    radial-gradient(1.5px 1.5px at 8% 32%,rgba(255,255,255,.9),transparent 60%),
-    radial-gradient(1px 1px at 22% 74%,rgba(255,255,255,.7),transparent 60%),
-    radial-gradient(1.5px 1.5px at 37% 20%,var(--accent),transparent 60%),
-    radial-gradient(1px 1px at 54% 62%,rgba(255,255,255,.8),transparent 60%),
-    radial-gradient(1.5px 1.5px at 71% 30%,rgba(255,255,255,.6),transparent 60%),
-    radial-gradient(1px 1px at 88% 70%,rgba(255,255,255,.75),transparent 60%)}
-  .addon-stream::after{background-image:
-    radial-gradient(1px 1px at 14% 60%,rgba(255,255,255,.6),transparent 60%),
-    radial-gradient(1.5px 1.5px at 31% 44%,rgba(255,255,255,.8),transparent 60%),
-    radial-gradient(1px 1px at 47% 22%,var(--accent),transparent 60%),
-    radial-gradient(1.5px 1.5px at 63% 78%,rgba(255,255,255,.55),transparent 60%),
-    radial-gradient(1px 1px at 79% 48%,rgba(255,255,255,.85),transparent 60%),
-    radial-gradient(1.5px 1.5px at 95% 26%,rgba(255,255,255,.65),transparent 60%)}
-  .addon-stream:hover::before,.addon-stream:focus-visible::before{opacity:1;animation:stream-twinkle-a 3.2s ease-in-out infinite}
-  .addon-stream:hover::after,.addon-stream:focus-visible::after{opacity:1;animation:stream-twinkle-b 2.6s ease-in-out .4s infinite}
-  @keyframes stream-twinkle-a{0%,100%{opacity:.3;transform:translateY(1px)}50%{opacity:1;transform:translateY(-1px)}}
-  @keyframes stream-twinkle-b{0%,100%{opacity:.9;transform:translateY(-1px)}50%{opacity:.35;transform:translateY(1px)}}
+  /* hover.dev "Rounded Slide Button" hover: a rounded blob parked off the
+     bottom-right corner slides diagonally across to flood-fill the row on hover,
+     flipping the text/chevron to ink. One pseudo-element (::before) is the blob;
+     all children ride above it at z-index:1 — pure CSS, no JS. */
+  .addon-stream{transition:border-color .25s ease,color .45s ease,transform .3s cubic-bezier(.4,0,.2,1)}
+  .addon-stream::before{content:"";position:absolute;z-index:0;inset:0;pointer-events:none;
+    background:var(--accent);border-radius:100%;
+    transform:translate(150%,150%) scale(2.5);
+    transition:transform .9s cubic-bezier(.4,0,.2,1)}
+  .addon-stream:hover,.addon-stream:focus-visible{border-color:var(--accent);color:var(--ink);outline:none;transform:scale(1.02)}
+  .addon-stream:hover::before,.addon-stream:focus-visible::before{transform:translate(0,0) scale(2.5)}
+  .addon-stream:active{transform:scale(.98)}
   .addon-stream .quality-badge{position:relative;z-index:1}
   .addon-stream .stream-info{position:relative;z-index:1;flex:1;min-width:0}
-  .addon-stream .stream-title{display:block;font-size:16px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .addon-stream .stream-detail{display:block;font-family:var(--font-mono);font-size:13px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .addon-stream-chevron{position:relative;z-index:1;flex-shrink:0;color:var(--text-muted);font-size:20px;line-height:1}
-  .addon-stream:hover .addon-stream-chevron{color:var(--accent)}
+  .addon-stream .stream-title{display:block;font-size:16px;color:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .addon-stream .stream-detail{display:block;font-family:var(--font-mono);font-size:13px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .4s ease}
+  .addon-stream:hover .stream-detail,.addon-stream:focus-visible .stream-detail{color:var(--ink)}
+  .addon-stream-chevron{position:relative;z-index:1;flex-shrink:0;color:var(--text-muted);font-size:20px;line-height:1;transition:transform .4s ease,color .4s ease}
+  .addon-stream:hover .addon-stream-chevron,.addon-stream:focus-visible .addon-stream-chevron{color:var(--ink);transform:translateX(3px)}
   @media (prefers-reduced-motion:reduce){
-    .addon-stream:hover::before,.addon-stream:focus-visible::before,
-    .addon-stream:hover::after,.addon-stream:focus-visible::after{animation:none;opacity:.7}
+    .addon-stream{transition:border-color .2s,color .2s}
+    .addon-stream::before{transition:none}
+    .addon-stream:hover,.addon-stream:focus-visible,.addon-stream:active{transform:none}
+    .addon-stream-chevron{transition:color .2s}
+    .addon-stream:hover .addon-stream-chevron,.addon-stream:focus-visible .addon-stream-chevron{transform:none}
   }
 
   /* Source toggle — "Streaming Services" | "Addon Sources" segmented control */
@@ -2534,6 +2645,8 @@
       -webkit-tap-highlight-color:transparent}
     .railbar .rail-ic{flex:none;width:auto;display:grid;place-items:center}
     .railbar .rail-ic svg{width:23px;height:23px;display:block;stroke-width:1.8}
+    .railbar .rail-ic img{width:23px;height:23px}
+    .rail-myspace .rail-ic img{width:20px;height:20px}
     .railbar .rail-item:active{background:rgba(255,255,255,.10);color:#fff}
     .railbar .rail-item.active{color:#fff;background:rgba(255,255,255,.15)}
 
@@ -2554,4 +2667,5 @@
   @media (max-width:360px){
     .railbar .rail-item{width:40px;height:40px}
     .railbar .rail-ic svg{width:21px;height:21px}
+    .railbar .rail-ic img{width:21px;height:21px}
   }

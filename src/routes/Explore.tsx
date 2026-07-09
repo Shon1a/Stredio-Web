@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useT, useGenre } from '../i18n/i18n';
 import { useGenres } from '../lib/queries';
 import { useModal, openItem } from '../stores/modal';
@@ -19,14 +20,22 @@ export default function Explore() {
   const openModal = useModal((s) => s.open);
   const { data: genresData } = useGenres();
 
+  // a genre card on the Categories page links here as /explore?genre=<name> —
+  // seed the genre filter (and open the panel) so the user lands on results.
+  const [params] = useSearchParams();
+  const seedGenre = params.get('genre') || '';
+
   const [raw, setRaw] = useState('');
   const [query, setQuery] = useState('');
   const [type, setType] = useState<TypeFilter>('all');
-  const [genre, setGenre] = useState<string>('');
+  const [genre, setGenre] = useState<string>(seedGenre);
   const [year, setYear] = useState(1970);
   const [rating, setRating] = useState(0);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(!!seedGenre);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // re-seed when navigating between different genre cards without unmounting
+  useEffect(() => { if (seedGenre) { setGenre(seedGenre); setFilterOpen(true); } }, [seedGenre]);
 
   // debounce the search box
   useEffect(() => { const id = setTimeout(() => setQuery(raw.trim()), 300); return () => clearTimeout(id); }, [raw]);
@@ -39,10 +48,13 @@ export default function Explore() {
     if (rating > 0) filters.ratingGte = String(rating);
     if (Object.keys(filters).length || type !== 'all') {
       filters.type = type === 'tv' ? 'tv' : 'movie';
-      return { kind: 'filter', filters, title: t('cat.filtered') };
+      // a lone genre filter titles the page with the genre (e.g. "Action"); any
+      // extra filter falls back to the generic "Filtered titles".
+      const only = genre && !(year > 1970) && rating === 0 && type === 'all';
+      return { kind: 'filter', filters, title: only ? genreT(genre) : t('cat.filtered') };
     }
     return { kind: 'category', cat: 'trending_movie', title: t('explore.trending') };
-  }, [query, type, genre, year, rating, t]);
+  }, [query, type, genre, year, rating, t, genreT]);
 
   const onSelect = (item: MediaItem) => openModal(openItem(item));
   const clearAll = () => { setType('all'); setGenre(''); setYear(1970); setRating(0); };

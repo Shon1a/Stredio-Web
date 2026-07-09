@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useT } from '../i18n/i18n';
 import { useAuth } from '../stores/auth';
@@ -13,22 +13,12 @@ const GATED = ['/addons', '/settings', '/library'];
  * Nav routes through React Router. The decorative #topbarFrame SVG and the
  * #authControl chip are left as empty hooks (auth lands in Phase 5). */
 
-const railIcons: Record<string, ReactNode> = {
-  home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" /></svg>,
-  search: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>,
-  tv: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="7" width="19" height="12.5" rx="2" /><path d="M8 3.5 12 7l4-3.5" /></svg>,
-  anime: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 12V3" /><path d="M12 12l7.8 4.5" /></svg>,
-  movies: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4" /></svg>,
-  categories: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.6" /><rect x="14" y="3" width="7" height="7" rx="1.6" /><rect x="3" y="14" width="7" height="7" rx="1.6" /><rect x="14" y="14" width="7" height="7" rx="1.6" /></svg>,
-  myspace: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8.5" r="3.5" /><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" /></svg>,
-};
-
 const RAIL: Array<{ rail: string; to: string; key: string }> = [
   { rail: 'home', to: '/', key: 'nav.home' },
-  { rail: 'search', to: '/explore', key: 'nav.search' },
   { rail: 'tv', to: '/tv', key: 'nav.tv' },
-  { rail: 'anime', to: '/anime', key: 'nav.anime' },
   { rail: 'movies', to: '/movies', key: 'nav.movies' },
+  { rail: 'anime', to: '/anime', key: 'nav.anime' },
+  { rail: 'search', to: '/explore', key: 'nav.search' },
   { rail: 'categories', to: '/categories', key: 'nav.categories' },
   { rail: 'myspace', to: '/library', key: 'myspace.title' },
 ];
@@ -84,7 +74,9 @@ export default function AppShell() {
               onClick={() => go(r.to)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(r.to); } }}
             >
-              <span className="rail-ic">{railIcons[r.rail]}</span>
+              <span className="rail-ic">
+                <img src={`/assets/rail/${r.rail}${isActive(r.to) ? '-active' : ''}.png`} alt="" aria-hidden="true" draggable={false} />
+              </span>
               <span className="rail-lbl">{t(r.key)}</span>
             </a>
           ))}

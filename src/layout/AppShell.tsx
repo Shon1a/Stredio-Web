@@ -34,12 +34,18 @@ const TOPNAV: Array<{ to: string; key: string }> = [
 export default function AppShell() {
   const t = useT();
   const nav = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const [navOpen, setNavOpen] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
   const user = useAuth((s) => s.user);
   const openAuth = useAuth((s) => s.openAuth);
   const logout = useAuth((s) => s.logout);
+
+  // every route change (and genre-card query change) lands at the top of the page —
+  // the window is the scroll container (main has no overflow), so reset it here
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname, search]);
 
   // the drawer is shown when body loses `nav-closed` (see app.css)
   useEffect(() => {

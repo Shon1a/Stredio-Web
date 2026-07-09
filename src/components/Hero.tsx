@@ -174,7 +174,12 @@ export default function Hero({ items, onPlay, onAdd }: HeroProps) {
       const cells = cellList();
       const ac = L + (looped ? 1 : 0);
       ensureSlideBg(cells[ac]); ensureSlideBg(cells[ac + 1]); ensureSlideBg(cells[ac - 1]);
-      cells.forEach((sl, col) => sl.classList.toggle('active', col === ac));
+      // A wrap glides onto the edge CLONE, not the real slide, so the clone must run the
+      // same Ken Burns in sync — otherwise it holds the end frame (scale 1.14) while the
+      // real slide restarts from 1.06, and the seamless jump pops the zoom back out.
+      const cloneCol = looped ? (L === 0 ? N + 1 : L === N - 1 ? 0 : -1) : -1;
+      if (cloneCol >= 0) ensureSlideBg(cells[cloneCol]);
+      cells.forEach((sl, col) => sl.classList.toggle('active', col === ac || col === cloneCol));
       root.querySelectorAll<HTMLElement>('.hero-thumb').forEach((d, i) => {
         const on = i === L;
         d.classList.toggle('active', on);

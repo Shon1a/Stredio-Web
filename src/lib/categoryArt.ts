@@ -22,7 +22,7 @@ function artUrl(src: ArtSrc, lang: string): string {
   return `/api/browse?${new URLSearchParams({ cat: src.cat, page: '1', lang })}`;
 }
 
-export function useCategoryArt(key: string, src: ArtSrc, count = 3) {
+export function useCategoryArt(key: string, src: ArtSrc, count = 1) {
   const { lang } = useLang();
   return useQuery({
     queryKey: ['cat-art', key, lang],
@@ -39,7 +39,9 @@ export function useCategoryArt(key: string, src: ArtSrc, count = 3) {
       const shots: string[] = [];
       for (const it of items) {
         const raw = (it.backdrop || it.poster) as string | undefined;
-        if (raw) shots.push(imgW(raw, 'w500'));
+        // tiles render a ~150px-wide strip of 3 stills; w300 is ample even at 2× DPR
+        // and roughly halves the bytes vs the old w500.
+        if (raw) shots.push(imgW(raw, 'w300'));
         if (shots.length >= count) break;
       }
       return shots;

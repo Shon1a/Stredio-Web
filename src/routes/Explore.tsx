@@ -21,7 +21,7 @@ export default function Explore() {
   const { data: genresData } = useGenres();
 
   // a genre card on the Categories page links here as /explore?genre=<name> —
-  // seed the genre filter (and open the panel) so the user lands on results.
+  // seed the genre filter so the user lands straight on results (panel stays closed).
   const [params] = useSearchParams();
   const seedGenre = params.get('genre') || '';
 
@@ -31,11 +31,12 @@ export default function Explore() {
   const [genre, setGenre] = useState<string>(seedGenre);
   const [year, setYear] = useState(1970);
   const [rating, setRating] = useState(0);
-  const [filterOpen, setFilterOpen] = useState(!!seedGenre);
+  const [filterOpen, setFilterOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // re-seed when navigating between different genre cards without unmounting
-  useEffect(() => { if (seedGenre) { setGenre(seedGenre); setFilterOpen(true); } }, [seedGenre]);
+  // re-seed when navigating between different genre cards without unmounting —
+  // apply the genre but keep the filter panel closed (user asked results-first)
+  useEffect(() => { if (seedGenre) { setGenre(seedGenre); setFilterOpen(false); } }, [seedGenre]);
 
   // debounce the search box
   useEffect(() => { const id = setTimeout(() => setQuery(raw.trim()), 300); return () => clearTimeout(id); }, [raw]);

@@ -299,7 +299,16 @@
   /* page */
   .page{display:none;padding:var(--page-top) var(--page-pad) 80px}
   /* the live page sits directly on the pure-black canvas — no ambient colour wash */
-  .page.active{display:block;background:transparent}
+  /* Reserve at least the viewport height for the routed content so the persistent
+     site-footer (a sibling below <Outlet/> in AppShell) always starts BELOW the fold.
+     Without this the footer painted high in the viewport during each route's loading
+     state (Home's one-line "loading…" <p>, etc.) and then jumped far down when the
+     hero + rows mounted — a ~0.15 CLS attributed to footer.site-footer. Starting the
+     footer off-screen makes that downward growth happen below the fold, so it no
+     longer counts as layout shift. Reserve the LARGE viewport height (100vh == lvh):
+     using the smaller svh here would let the footer slip back into view when a mobile
+     URL bar retracts, so vh is deliberate. */
+  .page.active{display:block;background:transparent;min-height:100vh}
 
   /* ---------- featured hero carousel ---------- */
   /* full-bleed: pull out of the page padding so the backdrop spans edge-to-edge

@@ -10,6 +10,7 @@ import type { MetaDetail, MediaItem, CastMember } from '../../lib/types';
 import { useTrailer } from './useTrailer';
 import EpisodeChooser from './EpisodeChooser';
 import StreamLangSelect from './StreamLangSelect';
+import SourceSelect from './SourceSelect';
 import { collectAddonStreams, orderLangs, qualityRank, type AddonStream } from '../../lib/addonClient';
 import { pickWatchServices } from '../../lib/watchProviders';
 
@@ -335,10 +336,7 @@ export default function DetailModal() {
               <div className="m-streams" ref={streamsRef}>
                 <div className="m-rail-head">
                   <h4 className="m-rail-label">{t('modal.streams')}</h4>
-                  <div className="m-src-toggle" role="tablist" aria-label={t('modal.streams')}>
-                    <button className={`m-src-tab${srcTab === 'services' ? ' on' : ''}`} type="button" role="tab" aria-selected={srcTab === 'services'} onClick={() => setSrcTab('services')}>{t('modal.tab_streaming')}</button>
-                    <button className={`m-src-tab${srcTab === 'addons' ? ' on' : ''}`} type="button" role="tab" aria-selected={srcTab === 'addons'} onClick={() => setSrcTab('addons')}>{t('modal.tab_addons')}</button>
-                  </div>
+                  <SourceSelect value={srcTab} onChange={setSrcTab} />
                   {srcTab === 'addons' && availableLangs.length > 0 && <StreamLangSelect langs={availableLangs} value={lang} onChange={setLang} />}
                 </div>
                 <div id="streamList">

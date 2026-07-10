@@ -1667,20 +1667,31 @@
     cursor:pointer;border:1px solid var(--border);background:none;color:var(--text-muted);transition:.15s;white-space:nowrap}
   .season-tab:hover{border-color:var(--accent);color:var(--accent)}
   .season-tab.on{background:var(--accent);color:var(--ink);border-color:var(--accent)}
+  /* Language picker — same staggered dropdown + coloring/height as .m-src-select */
   .lang-select{position:relative;margin:0 0 14px;width:max-content;min-width:210px;font-family:var(--font-mono)}
   .lang-select-trigger{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;
-    font-family:var(--font-mono);font-size:14px;letter-spacing:.04em;padding:9px 14px;border-radius:8px;cursor:pointer;
-    border:1px solid var(--border);background:var(--bg-3);color:var(--text);transition:.15s}
-  .lang-select-trigger:hover,.lang-select.open .lang-select-trigger{border-color:var(--accent)}
-  .lang-chev{color:var(--text-muted);font-size:11px;transition:transform .15s}
+    font-family:var(--font-mono);font-size:13px;letter-spacing:.02em;padding:7px 12px;border-radius:8px;cursor:pointer;
+    border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);
+    transition:background .15s,border-color .15s,color .15s}
+  .lang-select-trigger:hover{background:rgba(255,255,255,.08)}
+  .lang-select.open .lang-select-trigger{border-color:var(--accent)}
+  .lang-chev{color:var(--text-muted);font-size:11px;transition:transform .25s ease}
   .lang-select.open .lang-chev{transform:rotate(180deg)}
-  .lang-menu{display:none;position:absolute;z-index:30;top:calc(100% + 6px);left:0;min-width:100%;margin:0;padding:5px;
-    list-style:none;border:1px solid var(--border);border-radius:8px;background:var(--bg-3);box-shadow:0 14px 40px rgba(0,0,0,.55)}
-  .lang-select.open .lang-menu{display:block}
-  .lang-opt{font-size:14px;letter-spacing:.04em;padding:9px 13px;border-radius:6px;cursor:pointer;color:var(--text-muted);
-    white-space:nowrap;transition:.12s}
-  .lang-opt:hover{background:var(--card);color:var(--text)}
+  .lang-menu{position:absolute;z-index:30;top:calc(100% + 6px);left:0;min-width:100%;margin:0;padding:5px;
+    list-style:none;border:1px solid var(--border);border-radius:9px;background:var(--surface);box-shadow:0 14px 34px rgba(0,0,0,.45);
+    transform-origin:top center;transform:translateY(-6px);opacity:0;pointer-events:none;
+    transition:transform .18s ease,opacity .18s ease}
+  .lang-select.open .lang-menu{transform:none;opacity:1;pointer-events:auto}
+  .lang-opt{font-size:13px;letter-spacing:.02em;padding:8px 13px;border-radius:6px;cursor:pointer;color:var(--text-muted);
+    white-space:nowrap;opacity:0;transform:translateY(-10px);
+    transition:opacity .2s ease,transform .2s ease,background .15s,color .15s}
+  .lang-select.open .lang-opt{opacity:1;transform:none;transition-delay:calc(var(--i) * .05s + .04s)}
+  .lang-opt:hover{background:rgba(255,255,255,.06);color:var(--text)}
   .lang-opt[aria-selected="true"]{background:var(--accent);color:var(--ink)}
+  @media (prefers-reduced-motion:reduce){
+    .lang-chev,.lang-menu,.lang-opt{transition-duration:.01ms}
+    .lang-select.open .lang-opt{transition-delay:0s}
+  }
   /* Real SVG flags (data-URI) — Windows Chrome/Edge don't render flag emoji, so we
      don't rely on them. 3:2 ratio, subtle ring for definition on the dark panel. */
   .flag{display:inline-block;width:22px;height:15px;border-radius:2px;margin-right:9px;vertical-align:-2px;
@@ -1751,15 +1762,37 @@
     .addon-stream:hover .addon-stream-chevron,.addon-stream:focus-visible .addon-stream-chevron{transform:none}
   }
 
-  /* Source toggle — "Streaming Services" | "Addon Sources" segmented control */
-  .m-src-toggle{display:inline-flex;flex:0 0 auto;gap:2px;padding:3px;border:1px solid var(--border);
-    border-radius:8px;background:rgba(255,255,255,.04)}
-  .m-src-tab{appearance:none;border:none;background:transparent;color:var(--text-muted);cursor:pointer;
-    font:inherit;font-size:13px;letter-spacing:.02em;padding:6px 12px;border-radius:6px;
-    transition:background .15s,color .15s;white-space:nowrap}
-  .m-src-tab:hover{color:var(--text)}
-  .m-src-tab.on{background:var(--accent);color:var(--ink)}
-  .m-src-tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  /* Source picker — staggered dropdown ("Streaming Services" / "Addon Sources"),
+     modelled on hover.dev's "Staggered Dropdown": the chevron flips on open and
+     the menu scales down from the top while each option slides in on a delay. */
+  .m-src-select{position:relative;flex:0 0 auto;z-index:5}
+  .m-src-trigger{display:inline-flex;align-items:center;gap:8px;appearance:none;cursor:pointer;
+    font:inherit;font-size:13px;letter-spacing:.02em;color:var(--text);white-space:nowrap;
+    padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.04);
+    transition:background .15s,border-color .15s,color .15s}
+  .m-src-trigger:hover{background:rgba(255,255,255,.08)}
+  .m-src-select.open .m-src-trigger{border-color:var(--accent)}
+  .m-src-trigger:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .m-src-cur{font-weight:600}
+  .m-src-chev{font-size:11px;color:var(--text-muted);transition:transform .25s ease}
+  .m-src-select.open .m-src-chev{transform:rotate(180deg)}
+
+  .m-src-menu{position:absolute;top:calc(100% + 6px);left:0;min-width:100%;margin:0;padding:5px;
+    list-style:none;border:1px solid var(--border);border-radius:9px;background:var(--surface);
+    box-shadow:0 14px 34px rgba(0,0,0,.45);z-index:20;
+    transform-origin:top center;transform:translateY(-6px);opacity:0;pointer-events:none;
+    transition:transform .18s ease,opacity .18s ease}
+  .m-src-select.open .m-src-menu{transform:none;opacity:1;pointer-events:auto}
+  .m-src-opt{white-space:nowrap;cursor:pointer;font-size:13px;letter-spacing:.02em;color:var(--text-muted);
+    padding:8px 14px 8px 12px;border-radius:6px;opacity:0;transform:translateY(-10px);
+    transition:opacity .2s ease,transform .2s ease,background .15s,color .15s}
+  .m-src-select.open .m-src-opt{opacity:1;transform:none;transition-delay:calc(var(--i) * .06s + .04s)}
+  .m-src-opt:hover{background:rgba(255,255,255,.06);color:var(--text)}
+  .m-src-opt.on,.m-src-opt.on:hover{background:var(--accent);color:var(--ink)}
+  @media (prefers-reduced-motion:reduce){
+    .m-src-chev,.m-src-menu,.m-src-opt{transition-duration:.01ms}
+    .m-src-select.open .m-src-opt{transition-delay:0s}
+  }
 
   /* Streaming-service buttons reuse .addon-stream sizing/hover; just add the logo tile */
   .m-provider{text-decoration:none}

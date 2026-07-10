@@ -93,7 +93,7 @@ const SEED: Record<string, string> = {
   'modal.now_streaming': 'NOW STREAMING',
   'modal.watch': 'WATCH',
   'modal.watch_authed': 'WATCH',
-  'modal.resume': 'Resume',
+  'modal.resume': 'RESUME',
   'modal.close_aria': 'Close details',
   'modal.unmute': 'Unmute trailer',
   'modal.mute': 'Mute trailer',

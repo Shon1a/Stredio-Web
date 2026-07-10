@@ -171,10 +171,24 @@ export default function DetailModal() {
     return () => { alive = false; };
   }, [meta?.imdb, isTv, pickedEp]);
 
-  // default the language bucket to the first available whenever the sources change
+  // default the language bucket when the sources change: keep the current pick if it's
+  // still offered, else prefer the language the user was last watching (so RESUME plays
+  // the same one), else fall back to the first available.
   useEffect(() => {
     const langs = orderLangs(streams.flatMap((s) => s.langs));
-    setLang((cur) => (langs.includes(cur) ? cur : (langs[0] || '')));
+    // Compute the resume key inline rather than via buildMediaFor(): that helper is a
+    // const declared below the `if (!target) return` early-return, so it sits in the
+    // temporal dead zone on the target=null render that fires when the modal closes
+    // (which also resets `streams` → [], re-running this effect). Touching it there
+    // threw "Cannot access 'buildMediaFor' before initialization" and crashed the app.
+    const rkey = target ? (pickedEp ? `${target.id}:S${pickedEp.season}E${pickedEp.ep}` : String(target.id)) : '';
+    const savedLang = signedIn && rkey ? getResume(rkey)?.lang : undefined;
+    setLang((cur) => {
+      if (cur && langs.includes(cur)) return cur;
+      if (savedLang && langs.includes(savedLang)) return savedLang;
+      return langs[0] || '';
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streams]);
 
   // picking an episode brings its freshly-loaded sources into view (matches vanilla)
@@ -221,21 +235,23 @@ export default function DetailModal() {
     const ns = seasons[seasons.indexOf(ep.season) + 1];
     return ns != null && epsInSeason(ns) > 0 ? { season: ns, ep: 1 } : null;
   };
-  const buildMediaFor = (ep: Ep | null) => {
+  const buildMediaFor = (ep: Ep | null, langTag?: string) => {
     const key = ep ? `${target.id}:S${ep.season}E${ep.ep}` : String(target.id);
-    return { id: target.id, key, title, poster: meta?.poster || target.poster, year, type: target.type, genre: target.genre, rating, ep: ep ? `S${ep.season}E${ep.ep}` : undefined, season: ep?.season ?? null, episode: ep?.ep ?? null };
+    return { id: target.id, key, title, poster: meta?.poster || target.poster, year, type: target.type, genre: target.genre, rating, ep: ep ? `S${ep.season}E${ep.ep}` : undefined, season: ep?.season ?? null, episode: ep?.ep ?? null, lang: langTag || undefined };
   };
   const subsOf = (s: AddonStream) => s.subtitles?.map((x) => ({ lang: x.lang, label: x.lang || 'Subtitle', url: x.url }));
   // series context for the in-player episodes panel (only for a series episode)
   const seriesFor = (ep: Ep | null) => (ep && meta?.seasonList?.length
     ? { seasons: meta.seasonList, metaId: target.id, imdb: meta.imdb, season: ep.season, ep: ep.ep, title, playEp: (s: number, e: number) => { void playEpisode(s, e); } }
     : undefined);
-  const playStreamFor = (s: AddonStream, ep: Ep | null) => {
+  const playStreamFor = (s: AddonStream, ep: Ep | null, langTag?: string) => {
     const nxt = nextEpOf(ep);
+    // the language this playback represents, so resume can pick the same one later
+    const chosen = langTag ?? (lang && s.langs.includes(lang) ? lang : s.langs[0]);
     playSource({
       url: s.url, kind: s.kind, title,
       subtitle: ep ? `S${ep.season} · E${ep.ep}` : undefined,
-      media: buildMediaFor(ep), subtitles: subsOf(s),
+      media: buildMediaFor(ep, chosen), subtitles: subsOf(s),
       next: nxt ? () => { void playEpisode(nxt.season, nxt.ep); } : undefined,
       series: seriesFor(ep),
     });
@@ -250,7 +266,7 @@ export default function DetailModal() {
     const want = langs.includes(lang) ? lang : langs[0];
     const shown = list.filter((s) => !want || s.langs.includes(want)).sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality));
     const best = shown[0] || list[0];
-    if (best) { playStreamFor(best, { season, ep }); return; }
+    if (best) { playStreamFor(best, { season, ep }, want); return; }
     const nxt = nextEpOf({ season, ep });
     playSource({ url: '/assets/demo.mp4', title, subtitle: `S${season} · E${ep}`, media: buildMediaFor({ season, ep }), next: nxt ? () => { void playEpisode(nxt.season, nxt.ep); } : undefined, series: seriesFor({ season, ep }) });
   };
@@ -281,6 +297,8 @@ export default function DetailModal() {
   // meaningful for a signed-in user, since watch history is a signed-in feature.
   const resume = signedIn ? getResume(buildMediaFor(pickedEp).key) : null;
   const resumePct = resume && resume.dur > 0 ? Math.min(100, Math.max(0, (resume.pos / resume.dur) * 100)) : 0;
+  // minutes into the title where playback will pick up — shown on the RESUME button
+  const resumeMin = resume ? Math.max(1, Math.round(resume.pos / 60)) : 0;
   const hasSource = shownStreams.length > 0 || streams.length > 0;
 
   const hasEpisodes = isTv && !!meta?.seasonList?.length;
@@ -350,7 +368,7 @@ export default function DetailModal() {
               </div>
               <div className="m-hero-actions">
                 <button className={`hero-btn hero-play${resume ? ' has-resume' : ''}`} id="mWatch" type="button" onClick={onWatch}>
-                  <span className="ic" aria-hidden="true">▶</span><span>{watchLabel}</span>
+                  <span className="ic" aria-hidden="true">▶</span><span>{watchLabel}{resume ? <span className="hero-resume-at"> · {resumeMin} min</span> : null}</span>
                   {resume ? <span className="hero-progress" aria-hidden="true"><span className="hero-progress-fill" style={{ width: `${resumePct}%` }} /></span> : null}
                 </button>
                 <button className={`hero-add m-disc${added ? ' on' : ''}`} id="mAdd" type="button" aria-pressed={added} aria-label={t(added ? 'mylist.remove' : 'mylist.add')} onClick={onAdd}>{added ? '✓' : '+'}</button>

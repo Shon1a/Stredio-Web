@@ -1489,6 +1489,8 @@
     background:rgba(10,10,10,.18);border-radius:0 0 6px 6px;overflow:hidden}
   .hero-progress-fill{display:block;height:100%;min-width:3px;background:var(--accent);
     border-radius:0 3px 3px 0;transition:width .3s ease}
+  /* "· 12 min" resume-point hint, dimmed against the white button */
+  .hero-resume-at{font-weight:600;opacity:.55}
 
   /* BODY GRID */
   .m-body{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:clamp(20px,3vw,34px);padding:clamp(20px,3vw,32px)}

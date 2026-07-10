@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { apiFetch } from '../lib/api';
 import { useAuth } from './auth';
-import { heartLib } from '../lib/heartLibrary';
+import { heartLib, type Library } from '../lib/heartLibrary';
 
 /* Continue Watching: watch history + resume progress + removal tombstones —
  * faithful port of the vanilla store (assets/js/app.js:630–785).
@@ -19,7 +19,7 @@ export interface WatchEntry {
   ep?: string; key?: string; at: number;
   season?: number | null; episode?: number | null;
 }
-export interface Progress { pos: number; dur: number; at: number }
+export interface Progress { pos: number; dur: number; at: number; lang?: string }
 
 const HISTORY_CAP = 60, PROGRESS_CAP = 240, PUSH_MS = 25000, PULL_MIN = 15000;
 const PROGRESS_DONE = 0.94;
@@ -57,6 +57,16 @@ function mergeProg(a: Record<string, Progress>, b: Record<string, Progress>): Re
   for (const k of keys) capped[k] = out[k];
   return capped;
 }
+// The Heart (Rust) core doesn't know about our per-entry `lang`, so its ops return
+// progress with `lang` stripped. Re-attach it from the pre-op state(s) by key.
+function keepLangs(lib: Library, ...sources: Array<Record<string, Progress> | undefined>): Library {
+  for (const k of Object.keys(lib.progress)) {
+    if (lib.progress[k].lang) continue;
+    for (const src of sources) { const l = src?.[k]?.lang; if (l) { lib.progress[k] = { ...lib.progress[k], lang: l }; break; } }
+  }
+  return lib;
+}
+
 function mergeTomb(a: Record<string, number>, b: Record<string, number>): Record<string, number> {
   const out: Record<string, number> = {}, now = Date.now(), TTL = 30 * 24 * 3600 * 1000;
   for (const src of [a || {}, b || {}]) for (const id of Object.keys(src)) { const at = +src[id] || 0; if (at > (out[id] || 0)) out[id] = at; }
@@ -74,7 +84,7 @@ interface HistoryState {
   removed: Record<string, number>;
   reload: () => void;
   record: (m: Omit<WatchEntry, 'at'>) => void;
-  putProgress: (key: string, pos: number, dur: number) => void;
+  putProgress: (key: string, pos: number, dur: number, lang?: string) => void;
   getResume: (key: string) => Progress | null;
   remove: (id: string | number) => void;
   pull: () => Promise<void>;
@@ -117,13 +127,17 @@ export const useHistory = create<HistoryState>((set, get) => {
       persist(); schedulePush();
     },
 
-    putProgress: (key, pos, dur) => {
+    putProgress: (key, pos, dur, lang) => {
       if (!key || !(pos > 0)) return;
       const cur = { history: get().history, progress: get().progress, removed: get().removed };
       const next = heartLib.setProgress(cur, key, Math.round(pos), Math.round(dur || 0), Date.now());
-      if (next) { set(next); persist(); schedulePush(); return; }
+      if (next) {
+        keepLangs(next, cur.progress); // Heart strips lang; restore it for every entry…
+        if (next.progress[key]) next.progress[key] = { ...next.progress[key], lang: lang ?? cur.progress[key]?.lang }; // …and set the one just played
+        set(next); persist(); schedulePush(); return;
+      }
       const map = { ...get().progress };
-      map[key] = { pos: Math.round(pos), dur: Math.round(dur || 0), at: Date.now() };
+      map[key] = { pos: Math.round(pos), dur: Math.round(dur || 0), at: Date.now(), lang: lang ?? map[key]?.lang };
       const keys = Object.keys(map);
       if (keys.length > PROGRESS_CAP) keys.sort((a, b) => (map[b].at || 0) - (map[a].at || 0)).slice(PROGRESS_CAP).forEach((k) => delete map[k]);
       set({ progress: map });
@@ -157,7 +171,7 @@ export const useHistory = create<HistoryState>((set, get) => {
         const cur = { history: get().history, progress: get().progress, removed: get().removed };
         const remoteLib = { history: remote.history || [], progress: remote.progress || {}, removed: remote.removed || {} };
         const next = heartLib.pulled(cur, remoteLib, Date.now()); // core merge (Rust)
-        if (next) { set(next); persist(); lastPull = Date.now(); return; }
+        if (next) { keepLangs(next, cur.progress, remoteLib.progress); set(next); persist(); lastPull = Date.now(); return; }
         const tomb = mergeTomb(get().removed, remote.removed || {});
         const history = mergeHist(get().history, remote.history || [], tomb);
         const progress = mergeProg(get().progress, remote.progress || {});

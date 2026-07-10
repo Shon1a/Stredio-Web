@@ -28,6 +28,7 @@ export interface PlayMedia {
   season?: number | null;
   episode?: number | null;
   ep?: string; // display label e.g. "S1E1"
+  lang?: string; // audio/source language being watched, so resume picks the same one
 }
 
 export interface PlaySource {

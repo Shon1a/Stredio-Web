@@ -521,7 +521,7 @@ export default function VideoPlayer() {
           const now = v.currentTime;
           if (source.media?.key && v.currentTime > 8 && Math.abs(now - lastProgRef.current) >= 5) {
             lastProgRef.current = now;
-            putProgress(source.media.key, v.currentTime, v.duration || 0);
+            putProgress(source.media.key, v.currentTime, v.duration || 0, source.media.lang);
           }
         }}
         onProgress={(e) => { const v = e.currentTarget; if (v.buffered.length) setBuffered(v.buffered.end(v.buffered.length - 1)); }}

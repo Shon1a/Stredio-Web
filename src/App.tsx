@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './stores/auth';
 import { useAddons } from './stores/addons';
 import { useHistory } from './stores/history';
+import { useLibrary } from './stores/library';
 import { useOfficial } from './stores/official';
 import { initHeartLibrary } from './lib/heartLibrary';
 import { initHeartCatalog } from './lib/heartCatalog';
@@ -30,6 +31,8 @@ export default function App() {
   const pullAddons = useAddons((s) => s.pullFromServer);
   const reloadHistory = useHistory((s) => s.reload);
   const pullHistory = useHistory((s) => s.pull);
+  const reloadLibrary = useLibrary((s) => s.reload);
+  const pullLibrary = useLibrary((s) => s.pull);
   const loadOfficial = useOfficial((s) => s.load);
   useEffect(() => {
     refresh(); loadConfig(); loadOfficial();
@@ -40,9 +43,9 @@ export default function App() {
   // on sign-in/out the localStorage namespace (per-email) changes → reload, then
   // merge the server-stored add-on collection + watch history when signed in
   useEffect(() => {
-    reloadHistory();
-    if (user) { pullAddons(); pullHistory(); }
-  }, [user, pullAddons, reloadHistory, pullHistory]);
+    reloadHistory(); reloadLibrary();
+    if (user) { pullAddons(); pullHistory(); pullLibrary(); }
+  }, [user, pullAddons, reloadHistory, pullHistory, reloadLibrary, pullLibrary]);
 
   return (
     <HashRouter>

@@ -35,9 +35,10 @@ function applyAudioPref(hls: HlsInstance, pref: string) {
  * scrubber (buffered + played + tooltip), ±10s, volume/mute, time, speed, quality
  * (HLS levels), subtitles, PiP, fullscreen, keyboard, and auto-hide chrome.
  *
- * Deferred to Phase 4 (need real streams / touch / series context): the touch
- * gesture HUD, picture-enhance (grain + unsharp convolution), and the skip-intro /
- * in-player episode panel. Their markup hooks are left in place. */
+ * On touch devices a full-frame gesture surface adds phone controls: tap to
+ * toggle chrome, double-tap the left/right third to seek ±10s (accumulating),
+ * vertical drag for volume (right half) / brightness (left half), and a
+ * horizontal drag to scrub — mirroring the native mobile players. */
 
 const Worm = (
   <svg className="vp-pl" viewBox="0 0 128 128" width="128" height="128" aria-hidden="true">
@@ -54,6 +55,15 @@ const IcMute = <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColo
 const IcGear = <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-1.7-1l-.4-2.6h-3.8l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h3.8l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.4 1 2-3.4zM12 15.2A3.2 3.2 0 1 1 12 8.8a3.2 3.2 0 0 1 0 6.4z" /></svg>;
 const IcPip = <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M3 5h18v14H3V5zm2 2v10h14V7H5zm6 4h7v5h-7v-5z" /></svg>;
 const IcFs = <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M4 9V4h5v2H6v3H4zm11-5h5v5h-2V6h-3V4zM6 15v3h3v2H4v-5h2zm12 0h2v5h-5v-2h3v-3z" /></svg>;
+
+// gesture-HUD glyphs: double-chevron seek ripples + volume/brightness meters
+const IcRew = <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M11 6l-6 6 6 6V6zm8 0l-6 6 6 6V6z" /></svg>;
+const IcFF = <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M13 6l6 6-6 6V6zM5 6l6 6-6 6V6z" /></svg>;
+const IcVolHud = <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z" /><path d="M16 8.5a4 4 0 0 1 0 7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
+const IcVolMuteHud = <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M4 9v6h4l5 5V4L8 9H4z" /><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
+const IcSun = <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>;
+
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
@@ -124,13 +134,30 @@ export default function VideoPlayer() {
   const [segments, setSegments] = useState<Segments | null>(null);
   const ccOn = currentSub >= 0;
 
+  // --- mobile touch gestures ---
+  // enabled only where the primary pointer is coarse (phones/tablets), so the
+  // gesture surface never eats mouse clicks on hybrid laptops.
+  const [isTouch] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches);
+  const [webkitPip, setWebkitPip] = useState(false); // iPad/iOS per-video PiP
+  const [bright, setBright] = useState(1);            // 1 = full; web can't set device brightness so we dim the frame
+  const [seekHud, setSeekHud] = useState<{ side: 'left' | 'right'; secs: number } | null>(null);
+  const [vHud, setVHud] = useState<{ kind: 'vol' | 'bright'; val: number } | null>(null);
+  const hideUiRef = useRef(false);                    // fresh read for deferred single-tap
+  const gestRef = useRef({ active: false, x0: 0, y0: 0, t0: 0, w: 1, h: 1, mode: '' as '' | 'seek' | 'vol' | 'bright', startVol: 1, startBright: 1, startTime: 0 });
+  const lastTapRef = useRef({ t: 0, x: 0, side: '' as '' | 'left' | 'center' | 'right' });
+  const seekAccumRef = useRef<{ side: '' | 'left' | 'right'; secs: number }>({ side: '', secs: 0 });
+  const singleTapTimer = useRef<number | undefined>(undefined);
+  const seekHudTimer = useRef<number | undefined>(undefined);
+  const vHudTimer = useRef<number | undefined>(undefined);
+  useEffect(() => { hideUiRef.current = hideUi; }, [hideUi]);
+
   // attach the source (HLS via hls.js, else native)
   useEffect(() => {
     const v = videoRef.current;
     if (!v || !source) return;
     let cancelled = false;
     recordedRef.current = false; resumedRef.current = false; lastProgRef.current = 0;
-    setLoading(true); setErrKind(null); setPlaying(false); setCur(0); setDur(0); setBuffered(0); setLevels([]); setCurLevel(-1); setMenuOpen(false); setHideUi(false); setAudioTracks([]); setCurAudio(0); setEpPanelOpen(false);
+    setLoading(true); setErrKind(null); setPlaying(false); setCur(0); setDur(0); setBuffered(0); setLevels([]); setCurLevel(-1); setMenuOpen(false); setHideUi(false); setAudioTracks([]); setCurAudio(0); setEpPanelOpen(false); setBright(1); setSeekHud(null); setVHud(null); seekAccumRef.current = { side: '', secs: 0 };
     const url = source.url;
     // Prefer hls.js for any HLS source. DON'T gate on canPlayType('…mpegurl'):
     // modern Chrome returns "maybe" for that MIME type yet CANNOT actually play HLS
@@ -270,12 +297,24 @@ export default function VideoPlayer() {
   const nudge = useCallback((d: number) => { const v = videoRef.current; if (v) v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + d)); }, []);
   const toggleMute = useCallback(() => { const v = videoRef.current; if (v) v.muted = !v.muted; }, []);
   const toggleFs = useCallback(() => {
-    const el = overlayRef.current; if (!el) return;
-    if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen?.();
+    const el = overlayRef.current;
+    const v = videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    if (el?.requestFullscreen) { el.requestFullscreen(); return; }
+    // iPhone Safari can't fullscreen an element — only the <video> itself
+    if (v?.webkitEnterFullscreen) v.webkitEnterFullscreen();
   }, []);
   const togglePip = useCallback(async () => {
-    const v = videoRef.current; if (!v) return;
-    try { if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await v.requestPictureInPicture(); } catch { /* ignore */ }
+    const v = videoRef.current as (HTMLVideoElement & { webkitSetPresentationMode?: (m: string) => void; webkitPresentationMode?: string }) | null;
+    if (!v) return;
+    try {
+      // iPad/iOS expose PiP via webkitSetPresentationMode, not the standard API
+      if (typeof v.webkitSetPresentationMode === 'function') {
+        v.webkitSetPresentationMode(v.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
+        return;
+      }
+      if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await v.requestPictureInPicture();
+    } catch { /* ignore */ }
   }, []);
   const setLevel = (i: number) => { const h = hlsRef.current; if (h) h.currentLevel = i; setCurLevel(i); };
   const setSpeed = (r: number) => { const v = videoRef.current; if (v) v.playbackRate = r; setRate(r); };
@@ -302,6 +341,95 @@ export default function VideoPlayer() {
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   };
+
+  // --- touch gesture handlers (single tap toggles chrome; double-tap the left/right
+  // third seeks ±10s and accumulates; a vertical drag adjusts volume on the right half
+  // and brightness on the left; a horizontal drag scrubs) ---
+  const showVHud = (kind: 'vol' | 'bright', val: number) => { window.clearTimeout(vHudTimer.current); setVHud({ kind, val }); };
+  const hideVHudSoon = () => { window.clearTimeout(vHudTimer.current); vHudTimer.current = window.setTimeout(() => setVHud(null), 650); };
+
+  const doDoubleTap = (region: 'left' | 'center' | 'right') => {
+    const v = videoRef.current; if (!v) return;
+    if (region === 'center') { togglePlay(); bump(); return; }
+    const dir = region === 'left' ? -1 : 1;
+    const acc = seekAccumRef.current;
+    const secs = (acc.side === region ? acc.secs : 0) + 10;
+    seekAccumRef.current = { side: region, secs };
+    v.currentTime = clamp(v.currentTime + dir * 10, 0, v.duration || 0);
+    setSeekHud({ side: region === 'left' ? 'left' : 'right', secs });
+    window.clearTimeout(seekHudTimer.current);
+    seekHudTimer.current = window.setTimeout(() => { setSeekHud(null); seekAccumRef.current = { side: '', secs: 0 }; }, 700);
+  };
+
+  const onGestureStart = (e: React.TouchEvent) => {
+    const g = gestRef.current;
+    if (e.touches.length !== 1) { g.active = false; return; }   // ignore pinch/multi-touch
+    const el = overlayRef.current, v = videoRef.current; if (!el) return;
+    const r = el.getBoundingClientRect(), tch = e.touches[0];
+    g.active = true; g.mode = ''; g.t0 = performance.now();
+    g.x0 = tch.clientX - r.left; g.y0 = tch.clientY - r.top; g.w = r.width; g.h = r.height;
+    g.startVol = v?.muted ? 0 : (v?.volume ?? 1); g.startBright = bright; g.startTime = v?.currentTime ?? 0;
+  };
+  const onGestureMove = (e: React.TouchEvent) => {
+    const g = gestRef.current;
+    if (!g.active || e.touches.length !== 1) return;
+    const el = overlayRef.current, v = videoRef.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    const dx = (e.touches[0].clientX - r.left) - g.x0, dy = (e.touches[0].clientY - r.top) - g.y0;
+    if (!g.mode) {
+      if (Math.abs(dx) < 14 && Math.abs(dy) < 14) return;       // below intent threshold
+      g.mode = Math.abs(dx) > Math.abs(dy) ? 'seek' : (g.x0 < g.w / 2 ? 'bright' : 'vol');
+      if (g.mode === 'seek') { setHideUi(false); window.clearTimeout(hideTimer.current); } // reveal scrubber
+    }
+    const span = g.h * 0.6;                                     // full-scale drag distance
+    if (g.mode === 'vol' && v) {
+      const nv = clamp(g.startVol - dy / span, 0, 1);
+      v.volume = nv; v.muted = nv <= 0.001;
+      showVHud('vol', nv);
+    } else if (g.mode === 'bright') {
+      const nb = clamp(g.startBright - dy / span, 0.15, 1);
+      setBright(nb); showVHud('bright', (nb - 0.15) / 0.85);
+    } else if (g.mode === 'seek' && v && v.duration) {
+      const reach = Math.min(v.duration, 180);                  // full swipe = ±180s (or whole clip)
+      v.currentTime = clamp(g.startTime + (dx / g.w) * reach, 0, v.duration);
+    }
+  };
+  const onGestureEnd = () => {
+    const g = gestRef.current;
+    if (!g.active) return;
+    g.active = false;
+    if (g.mode) {                                               // a drag — settle HUDs
+      if (g.mode === 'vol' || g.mode === 'bright') hideVHudSoon();
+      else bump();                                              // scrub: restart auto-hide
+      return;
+    }
+    const dt = performance.now() - g.t0;
+    if (dt > 500) return;                                       // long-press: not a tap
+    const region: 'left' | 'center' | 'right' = g.x0 < g.w * 0.35 ? 'left' : g.x0 > g.w * 0.65 ? 'right' : 'center';
+    const now = performance.now(), last = lastTapRef.current;
+    if (now - last.t < 320 && Math.abs(g.x0 - last.x) < 90 && last.side === region) {
+      window.clearTimeout(singleTapTimer.current);             // upgrade to a double-tap
+      lastTapRef.current = { t: now, x: g.x0, side: region };
+      doDoubleTap(region);
+    } else {
+      lastTapRef.current = { t: now, x: g.x0, side: region };
+      window.clearTimeout(singleTapTimer.current);
+      singleTapTimer.current = window.setTimeout(() => {       // defer so a 2nd tap can upgrade
+        if (hideUiRef.current) bump(); else { setHideUi(true); window.clearTimeout(hideTimer.current); }
+      }, 280);
+    }
+  };
+
+  // clear gesture timers on unmount
+  useEffect(() => () => { window.clearTimeout(singleTapTimer.current); window.clearTimeout(seekHudTimer.current); window.clearTimeout(vHudTimer.current); }, []);
+
+  // detect iPad/iOS per-video PiP once the media element exists
+  useEffect(() => {
+    const v = videoRef.current as (HTMLVideoElement & { webkitSupportsPresentationMode?: (m: string) => boolean }) | null;
+    if (v && typeof v.webkitSupportsPresentationMode === 'function') {
+      try { setWebkitPip(!!v.webkitSupportsPresentationMode('picture-in-picture')); } catch { /* ignore */ }
+    }
+  }, [source]);
 
   // keyboard + fullscreen listener while open
   useEffect(() => {
@@ -358,7 +486,7 @@ export default function VideoPlayer() {
 
   return (
     <div
-      className={`vp-overlay open${hideUi ? ' hide-ui' : ''}${settings.enhance ? ' enhance-on' : ''}`}
+      className={`vp-overlay open${hideUi ? ' hide-ui' : ''}${settings.enhance ? ' enhance-on' : ''}${isTouch ? ' gestures-on' : ''}${webkitPip ? ' vp-has-webkit-pip' : ''}`}
       id="playerOverlay"
       ref={overlayRef}
       style={{ ['--grain' as string]: settings.enhance ? settings.grain : 0 }}
@@ -422,6 +550,26 @@ export default function VideoPlayer() {
       <style>{cueCss}</style>
 
       <div className="vp-grain" id="vpGrain" aria-hidden="true" />
+
+      {/* mobile gesture surface: tap toggles chrome, double-tap sides seek ±10s,
+          vertical drag = volume (right) / brightness (left), horizontal drag scrubs */}
+      {isTouch && (
+        <div className="vp-gestures" onTouchStart={onGestureStart} onTouchMove={onGestureMove} onTouchEnd={onGestureEnd} onTouchCancel={onGestureEnd}>
+          <div className="vp-bright" style={{ opacity: clamp(1 - bright, 0, 0.85) }} />
+          <div className={`vp-seekpulse left${seekHud?.side === 'left' ? ' show' : ''}`}>
+            <span className="rip" />
+            <span className="lbl">{IcRew}{(seekHud?.side === 'left' ? seekHud.secs : 10)}s</span>
+          </div>
+          <div className={`vp-seekpulse right${seekHud?.side === 'right' ? ' show' : ''}`}>
+            <span className="rip" />
+            <span className="lbl">{(seekHud?.side === 'right' ? seekHud.secs : 10)}s{IcFF}</span>
+          </div>
+          <div className={`vp-vhud${vHud ? ' show' : ''}`}>
+            <span className="ic">{vHud?.kind === 'bright' ? IcSun : (vHud && vHud.val <= 0.001 ? IcVolMuteHud : IcVolHud)}</span>
+            <span className="bar"><i style={{ width: `${Math.round((vHud?.val ?? 0) * 100)}%` }} /></span>
+          </div>
+        </div>
+      )}
 
       {loading && !errKind && (
         <div className="vp-loading show" id="vpLoading" role="status" aria-live="polite">
@@ -551,7 +699,7 @@ export default function VideoPlayer() {
                 </div>
               </div>
             </div>
-            {document.pictureInPictureEnabled && (
+            {(document.pictureInPictureEnabled || webkitPip) && (
               <button className="vp-icon" id="vpPip" aria-label={t('ctl.pip_a')} onClick={togglePip}>{IcPip}</button>
             )}
             <button className="vp-icon" id="vpFs" aria-label={t('ctl.fs_a')} aria-pressed={fs} onClick={toggleFs}>{IcFs}</button>

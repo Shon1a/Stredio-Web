@@ -132,6 +132,7 @@ export default function DetailModal() {
   const heroRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const episodesRef = useRef<HTMLDivElement>(null);
   const streamsRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const [bdLoaded, setBdLoaded] = useState(false);
@@ -282,13 +283,18 @@ export default function DetailModal() {
   const resumePct = resume && resume.dur > 0 ? Math.min(100, Math.max(0, (resume.pos / resume.dur) * 100)) : 0;
   const hasSource = shownStreams.length > 0 || streams.length > 0;
 
+  const hasEpisodes = isTv && !!meta?.seasonList?.length;
+
   // Hero CTA behaviour, by state:
-  //  • signed out            → open the sign-in overlay (never auto-play the demo)
-  //  • signed in + resume     → continue from the saved position (auto-seek in the player)
-  //  • signed in, no resume   → scroll the source list into view so a source is chosen
+  //  • signed in + resume → continue from the saved position (auto-seek in the player)
+  //  • otherwise (incl. signed out) → scroll to the episode chooser if this is a series,
+  //    else scroll the source list into view so a source is chosen
   const onWatch = () => {
-    if (!signedIn) { openAuth(); return; }
-    if (resume && hasSource) { playBest(); return; }
+    if (signedIn && resume && hasSource) { playBest(); return; }
+    if (hasEpisodes) {
+      episodesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     setSrcTab('addons');
     streamsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -360,7 +366,7 @@ export default function DetailModal() {
               {meta?.tagline && <div className="m-tagline" id="mTagline">{meta.tagline}</div>}
               <p className="plot m-plot" id="mPlot">{plot}</p>
 
-              {isTv && meta && <EpisodeChooser meta={meta} initial={target.resumeEp} onEpisode={(season, ep) => setPickedEp({ season, ep })} />}
+              {isTv && meta && <div ref={episodesRef}><EpisodeChooser meta={meta} initial={target.resumeEp} onEpisode={(season, ep) => setPickedEp({ season, ep })} /></div>}
 
               <div className="m-streams" ref={streamsRef}>
                 <div className="m-rail-head">

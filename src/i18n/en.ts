@@ -77,7 +77,7 @@ const SEED: Record<string, string> = {
   'sec.upcoming_movies': 'Upcoming Movies',
 
   // hero actions
-  'hero.play': 'Play',
+  'hero.play': 'MORE',
   'hero.more_info': 'More Info',
   'hero.add': 'My List',
   'hero.plot_fallback': '',
@@ -91,8 +91,8 @@ const SEED: Record<string, string> = {
   // detail modal
   'modal.now_showing': 'NOW SHOWING',
   'modal.now_streaming': 'NOW STREAMING',
-  'modal.watch': 'OPEN',
-  'modal.watch_authed': 'Watch',
+  'modal.watch': 'WATCH',
+  'modal.watch_authed': 'WATCH',
   'modal.resume': 'Resume',
   'modal.close_aria': 'Close details',
   'modal.unmute': 'Unmute trailer',

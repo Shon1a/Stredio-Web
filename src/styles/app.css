@@ -1483,6 +1483,12 @@
   .m-hero-actions{display:flex;align-items:center;gap:12px}
   .m-hero-actions .hero-play{padding:11px 24px;font-size:15px}
   .m-hero-actions .hero-add{width:44px;height:44px;font-size:20px}
+  /* resume state — thin watch-progress bar hugging the button's bottom edge */
+  .m-hero-actions .hero-play.has-resume{position:relative;padding-bottom:13px}
+  .hero-progress{position:absolute;left:0;right:0;bottom:0;height:4px;
+    background:rgba(10,10,10,.18);border-radius:0 0 6px 6px;overflow:hidden}
+  .hero-progress-fill{display:block;height:100%;min-width:3px;background:var(--accent);
+    border-radius:0 3px 3px 0;transition:width .3s ease}
 
   /* BODY GRID */
   .m-body{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:clamp(20px,3vw,34px);padding:clamp(20px,3vw,32px)}
@@ -1627,6 +1633,16 @@
   .demo-note{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.2);border-radius:6px;
     padding:18px;font-size:17px;color:var(--text-muted);line-height:1.6}
   .demo-note b{color:var(--accent);font-weight:400}
+  /* signed-out sources state — prompt + inline sign-in CTA */
+  .stream-signin{display:flex;flex-direction:column;gap:14px}
+  .stream-signin .demo-note{margin:0}
+  .addon-signin-btn{align-self:flex-start;display:inline-flex;align-items:center;gap:9px;
+    border:none;cursor:pointer;font-family:inherit;font-size:15px;font-weight:700;letter-spacing:.01em;
+    border-radius:6px;padding:11px 24px;background:#fff;color:#0a0a0a;
+    box-shadow:0 6px 22px rgba(0,0,0,.38);transition:transform .15s,background .2s,box-shadow .2s}
+  .addon-signin-btn:hover{background:#eaeaea;box-shadow:0 10px 30px rgba(0,0,0,.55)}
+  .addon-signin-btn:active{transform:scale(.97)}
+  .addon-signin-btn .ic{font-size:15px}
 
   /* ---------- site footer + legal / takedown page ---------- */
   .site-footer{border-top:1px solid var(--border);margin:0 var(--page-pad);padding:26px 0 46px;

@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { useModal } from '../../stores/modal';
 import { usePlayer } from '../../stores/player';
 import { useLibrary } from '../../stores/library';
+import { useAuth } from '../../stores/auth';
+import { useHistory } from '../../stores/history';
 import { useMeta } from '../../lib/queries';
 import { useT, useGenre } from '../../i18n/i18n';
 import { hueBg } from '../../lib/img';
@@ -119,6 +121,13 @@ export default function DetailModal() {
   const playSource = usePlayer((s) => s.play);
   const mylist = useLibrary((s) => s.mylist);
   const toggleList = useLibrary((s) => s.toggle);
+  const user = useAuth((s) => s.user);
+  const openAuth = useAuth((s) => s.openAuth);
+  // Subscribe to the progress map so the hero button's resume bar re-renders the
+  // moment a watch position is saved; getResume applies the <1% / >94% filter.
+  useHistory((s) => s.progress);
+  const getResume = useHistory((s) => s.getResume);
+  const signedIn = !!user;
 
   const heroRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
@@ -255,9 +264,10 @@ export default function DetailModal() {
   // add-on's own caption (s.label) drops to the detail line so its release info survives.
   const streamTitle = isTv && pickedEp ? `${title} · S${pickedEp.season} · E${pickedEp.ep}` : title;
 
-  // OPEN plays the top source for the current language; falls back to the bundled demo
-  // when no stream add-on is installed / returns nothing.
-  const onOpen = () => {
+  // Play the best available source for the current language/episode. The player
+  // seeks to any saved resume position itself (VideoPlayer reads getResume), so
+  // "continue watching" needs no extra wiring here.
+  const playBest = () => {
     if (shownStreams.length) playStreamFor(shownStreams[0], pickedEp);
     else if (streams.length) playStreamFor(streams[0], pickedEp);
     else {
@@ -265,6 +275,24 @@ export default function DetailModal() {
       playSource({ url: '/assets/demo.mp4', title, subtitle: pickedEp ? `S${pickedEp.season} · E${pickedEp.ep}` : undefined, media: buildMediaFor(pickedEp), next: nxt ? () => { void playEpisode(nxt.season, nxt.ep); } : undefined, series: seriesFor(pickedEp) });
     }
   };
+
+  // Saved resume position for the current title (movie) or picked episode — only
+  // meaningful for a signed-in user, since watch history is a signed-in feature.
+  const resume = signedIn ? getResume(buildMediaFor(pickedEp).key) : null;
+  const resumePct = resume && resume.dur > 0 ? Math.min(100, Math.max(0, (resume.pos / resume.dur) * 100)) : 0;
+  const hasSource = shownStreams.length > 0 || streams.length > 0;
+
+  // Hero CTA behaviour, by state:
+  //  • signed out            → open the sign-in overlay (never auto-play the demo)
+  //  • signed in + resume     → continue from the saved position (auto-seek in the player)
+  //  • signed in, no resume   → scroll the source list into view so a source is chosen
+  const onWatch = () => {
+    if (!signedIn) { openAuth(); return; }
+    if (resume && hasSource) { playBest(); return; }
+    setSrcTab('addons');
+    streamsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const watchLabel = signedIn ? t(resume ? 'modal.resume' : 'modal.watch_authed') : t('modal.watch');
 
   return (
     <div
@@ -315,8 +343,9 @@ export default function DetailModal() {
                 {genreChips.map((g) => <span className="chip" key={g}>{genre(g)}</span>)}
               </div>
               <div className="m-hero-actions">
-                <button className="hero-btn hero-play" id="mWatch" type="button" onClick={onOpen}>
-                  <span className="ic" aria-hidden="true">▶</span><span>{t('modal.watch')}</span>
+                <button className={`hero-btn hero-play${resume ? ' has-resume' : ''}`} id="mWatch" type="button" onClick={onWatch}>
+                  <span className="ic" aria-hidden="true">▶</span><span>{watchLabel}</span>
+                  {resume ? <span className="hero-progress" aria-hidden="true"><span className="hero-progress-fill" style={{ width: `${resumePct}%` }} /></span> : null}
                 </button>
                 <button className={`hero-add m-disc${added ? ' on' : ''}`} id="mAdd" type="button" aria-pressed={added} aria-label={t(added ? 'mylist.remove' : 'mylist.add')} onClick={onAdd}>{added ? '✓' : '+'}</button>
               </div>
@@ -357,6 +386,13 @@ export default function DetailModal() {
                         </a>
                       ));
                     })()
+                  ) : !signedIn ? (
+                    <div className="stream-signin">
+                      <div className="demo-note">{t('modal.signin_addon')}</div>
+                      <button className="addon-signin-btn" type="button" onClick={() => openAuth()}>
+                        <span className="ic" aria-hidden="true">▶</span><span>{t('auth.signin')}</span>
+                      </button>
+                    </div>
                   ) : isTv && !pickedEp ? (
                     <div className="demo-note">{t('modal.pick_episode')}</div>
                   ) : streamsLoading ? (

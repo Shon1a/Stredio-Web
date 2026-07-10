@@ -427,8 +427,18 @@
   .hero-add.on{background:rgba(255,255,255,.92);color:#fff}
   /* progress-bar dots: the active bar fills over the autoplay interval */
   /* hero slide selector — small backdrop thumbnails replace the progress dots */
+  /* The strip lives bottom-RIGHT. Its natural width (8 thumbs + two arrows ≈ 850px) would,
+     on a narrower window, reach left far enough to sit on top of the PLAY / MY LIST buttons.
+     Rather than re-dock, cap the strip to the width AVAILABLE to the right of those buttons
+     and let the inner track scroll — so only as many thumbs as actually fit are shown, the
+     rest scroll (the active thumb auto-scrolls into view, see setActiveSlide). The reserve
+     below = content inset (rail-pull + page-pad) + ~340px for the action row (button widths
+     + a gap, generous enough for wider localized labels e.g. Georgian) + the right page-pad.
+     On wide screens the cap exceeds the natural width, so nothing changes; it only bites as
+     the window shrinks, and it tracks --page-pad / --hero-rail-pull across every breakpoint. */
   .hero-thumbs{position:absolute;z-index:4;right:var(--page-pad);bottom:clamp(24px,4vh,44px);
-    display:flex;align-items:center;gap:8px}
+    display:flex;align-items:center;gap:8px;
+    max-width:calc(100vw - var(--hero-rail-pull) - var(--page-pad) * 2 - 340px)}
   /* borderless chevron ‹ › — navigates the hero backdrop (prev/next slide), not the strip */
   .hero-thumb-arrow{flex:0 0 auto;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
     cursor:pointer;color:#fff;font-size:22px;line-height:1;padding-bottom:2px;background:rgba(0,0,0,.3);
@@ -436,8 +446,11 @@
     transition:background .2s,opacity .2s;opacity:.8}
   .hero-thumb-arrow:hover{background:rgba(0,0,0,.5);opacity:1}
   /* all 8 thumbnails visible at once — no strip scrolling on desktop */
-  .hero-thumbs-track{position:relative;display:flex;gap:8px;overflow:visible;
-    scrollbar-width:none;-ms-overflow-style:none;padding:3px 2px}
+  /* min-width:0 lets the track shrink below its content inside the capped .hero-thumbs so
+     overflow-x can scroll; the ±2px hover lift stays inside the 3px vertical padding, so
+     switching off overflow:visible doesn't clip it. Scrollbar stays hidden. */
+  .hero-thumbs-track{position:relative;display:flex;gap:8px;min-width:0;overflow-x:auto;
+    scroll-behavior:smooth;scrollbar-width:none;-ms-overflow-style:none;padding:3px 2px}
   .hero-thumbs-track::-webkit-scrollbar{display:none}
   .hero-thumb{position:relative;flex:0 0 auto;width:88px;height:52px;border-radius:7px;overflow:hidden;
     padding:0;cursor:pointer;border:2px solid transparent;background:var(--bg-3);
@@ -470,24 +483,14 @@
     .hero-slide::after{background:
       linear-gradient(0deg,#000 0%,rgba(0,0,0,.9) 14%,rgba(0,0,0,.52) 36%,rgba(0,0,0,.12) 60%,transparent 80%),
       linear-gradient(180deg,rgba(0,0,0,.5) 0%,rgba(0,0,0,.1) 15%,transparent 28%)}
-    /* dots are pinned to the very bottom edge; the content block reserves enough
-       padding to clear them with a real gap (the progress bar sat right under PLAY on
-       notched phones once the safe-area inset lifted it — both now share that inset so
-       the ~26px gap holds on every device) */
-    .hero-inner{padding-bottom:calc(46px + env(safe-area-inset-bottom,0px))}
+    /* (bottom padding to clear the floating dock is set in the ≤900px dock block below;
+       the thumb strip is hidden there too, since the dock owns the bottom edge) */
     .hero-plot{font-size:14.5px;line-height:1.5;margin-bottom:16px;max-width:92%}
     .hero-meta{margin-bottom:16px;font-size:14px}
     .hero-btn{padding:11px 22px;font-size:17px}
     /* collapse "+ My List" to an icon-only disc — the label can't fit a 44px box */
     .hero-add{width:44px;height:44px;padding:0;gap:0;border-radius:50%;justify-content:center}
     .hero-add .hero-add-t{display:none}
-    /* thumbs span the full width and share it equally so EVERY slide's thumb fits on one
-       row (no clip / no scroll), regardless of how many slides there are. Each flexes to an
-       equal share, capped at 74px so a couple of thumbs don't balloon; 16:9 keeps them crisp. */
-    .hero-thumbs{left:var(--page-pad);right:var(--page-pad);bottom:calc(14px + env(safe-area-inset-bottom,0px));max-width:none;justify-content:center}
-    .hero-thumbs-track{width:100%;overflow:visible;gap:6px;justify-content:center}
-    .hero-thumb{flex:1 1 0;min-width:0;width:auto;max-width:74px;height:auto;aspect-ratio:16/9;box-sizing:border-box}
-    .hero-thumb-arrow{display:none}
   }
   /* landscape phones / short windows: the tall hero min-height nearly fills the
      viewport, burying the "Upcoming" rows — cap it so they peek above the fold.
@@ -2749,6 +2752,13 @@
     /* the hero's dots + play/title CTA live bottom-centre — exactly where the dock
        floats — so lift them above it; nothing gets covered or becomes un-tappable. */
     .hero-inner{padding-bottom:calc(86px + env(safe-area-inset-bottom,0px))}
+    /* the icon rail is a floating BOTTOM dock at this size, so hide the hero thumb strip
+       for the whole ≤900px range — it has no room beside the copy here and would sit right
+       over the dock. Hide with opacity (NOT display:none): the active thumb's ::after runs
+       the heroDotFill animation whose animationend drives hero autoplay (see Hero.tsx), so
+       display:none would freeze the carousel on slide 0. opacity:0 keeps that clock ticking
+       while removing the strip; pointer-events:none stops it swallowing taps over the art. */
+    .hero-thumbs{opacity:0;pointer-events:none}
 
     /* ---- 6 · transient toasts clear the dock -------------------------------
        toast() (app.js) pins its pill bottom-centre (bottom:30px) — exactly where

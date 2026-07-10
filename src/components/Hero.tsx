@@ -229,7 +229,7 @@ export default function Hero({ items, onPlay, onAdd }: HeroProps) {
     // hold instantly. 'wheel' already covers real scroll intent.
     const engageEvents = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
     const offEngage = () => engageEvents.forEach((ev) => window.removeEventListener(ev, engage));
-    function engage() { if (engaged) return; engaged = true; root.classList.remove('autohold'); offEngage(); }
+    const engage = () => { if (engaged) return; engaged = true; root.classList.remove('autohold'); offEngage(); };
     engageEvents.forEach((ev) => window.addEventListener(ev, engage, { passive: true }));
 
     // ---- wiring ----

@@ -9,6 +9,9 @@ import { useT } from '../../i18n/i18n';
  * IFrame API (no src reload, so sound never restarts the trailer). */
 
 const REVEAL_DELAY = 4000;
+// Hold off spinning up the (heavy, chatty) YouTube embed until the modal has settled,
+// so quickly flicking through titles doesn't each mount — and stream — a full trailer.
+const MOUNT_DELAY = 1500;
 
 function ytSrc(key: string, muted: boolean): string {
   return 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(key) +
@@ -35,54 +38,73 @@ export function useTrailer(
     const slot = slotRef.current, hero = heroRef.current;
     revealed.current = false;
     setMuted(true);
+    muteFnRef.current = null;
     hero?.classList.remove('has-trailer');
     iframeRef.current = null;
     if (!trailerKey || !slot) return;
 
-    const ifr = document.createElement('iframe');
-    ifr.title = t('modal.trailer_title', { title: titleRef.current || '' });
-    ifr.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
-    ifr.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
-    ifr.setAttribute('tabindex', '-1');
-    ifr.setAttribute('aria-hidden', 'true');
-    ifr.addEventListener('load', () => {
-      try { ifr.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: trailerKey, channel: 'widget' }), '*'); } catch { /* ignore */ }
-    });
-    ifr.src = ytSrc(trailerKey, true);
-    slot.appendChild(ifr);
-    iframeRef.current = ifr;
+    let ifr: HTMLIFrameElement | null = null;
+    let onMsg: ((e: MessageEvent) => void) | null = null;
 
-    const ytPost = (func: string, args?: unknown[]) => {
-      try { ifr.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args: args || [] }), '*'); } catch { /* ignore */ }
-    };
-    muteFnRef.current = (m: boolean) => { if (m) ytPost('mute'); else { ytPost('unMute'); ytPost('setVolume', [100]); } };
+    // Defer the actual mount: only spin up the YouTube embed once the modal has been
+    // open MOUNT_DELAY ms, so a quick browse past a title never starts (or streams) it.
+    const mountTimer = window.setTimeout(() => {
+      const frame = document.createElement('iframe');
+      ifr = frame;
+      frame.title = t('modal.trailer_title', { title: titleRef.current || '' });
+      frame.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+      frame.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+      frame.setAttribute('tabindex', '-1');
+      frame.setAttribute('aria-hidden', 'true');
+      frame.addEventListener('load', () => {
+        try { frame.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: trailerKey, channel: 'widget' }), '*'); } catch { /* ignore */ }
+      });
+      frame.src = ytSrc(trailerKey, true);
+      slot.appendChild(frame);
+      iframeRef.current = frame;
 
-    const onMsg = (e: MessageEvent) => {
-      if (!iframeRef.current || e.source !== ifr.contentWindow) return;
-      let d: unknown = e.data;
-      if (typeof d === 'string') { try { d = JSON.parse(d); } catch { return; } }
-      const msg = d as { event?: string; info?: { playerState?: number } | number };
-      if (!msg) return;
-      if (msg.event === 'onError') { ifr.src = 'about:blank'; ifr.remove(); iframeRef.current = null; hero?.classList.remove('has-trailer'); return; }
-      const st = msg.event === 'onStateChange'
-        ? (msg.info as number)
-        : (msg.event === 'infoDelivery' && msg.info ? (msg.info as { playerState?: number }).playerState : undefined);
-      if (st === 1 && !revealed.current) {
-        revealed.current = true;
-        setTimeout(() => {
-          if (iframeRef.current !== ifr) return;
-          ifr.classList.add('on');
-          hero?.classList.add('has-trailer');
-        }, REVEAL_DELAY);
-      }
-      if (st === 0) { ytPost('seekTo', [0, true]); ytPost('playVideo'); }
-    };
-    window.addEventListener('message', onMsg);
+      const ytPost = (func: string, args?: unknown[]) => {
+        try { frame.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args: args || [] }), '*'); } catch { /* ignore */ }
+      };
+      muteFnRef.current = (m: boolean) => { if (m) ytPost('mute'); else { ytPost('unMute'); ytPost('setVolume', [100]); } };
+
+      // Play through ONCE, then tear the embed down (was: seek-to-0 + replay). A modal
+      // left open shouldn't keep re-streaming the trailer — and its telemetry — forever.
+      const teardown = () => {
+        if (onMsg) window.removeEventListener('message', onMsg);
+        try { frame.src = 'about:blank'; } catch { /* ignore */ }
+        frame.remove();
+        if (iframeRef.current === frame) iframeRef.current = null;
+        hero?.classList.remove('has-trailer');
+      };
+
+      onMsg = (e: MessageEvent) => {
+        if (iframeRef.current !== frame || e.source !== frame.contentWindow) return;
+        let d: unknown = e.data;
+        if (typeof d === 'string') { try { d = JSON.parse(d); } catch { return; } }
+        const msg = d as { event?: string; info?: { playerState?: number } | number };
+        if (!msg) return;
+        if (msg.event === 'onError') { teardown(); return; }
+        const st = msg.event === 'onStateChange'
+          ? (msg.info as number)
+          : (msg.event === 'infoDelivery' && msg.info ? (msg.info as { playerState?: number }).playerState : undefined);
+        if (st === 1 && !revealed.current) {
+          revealed.current = true;
+          setTimeout(() => {
+            if (iframeRef.current !== frame) return;
+            frame.classList.add('on');
+            hero?.classList.add('has-trailer');
+          }, REVEAL_DELAY);
+        }
+        if (st === 0) teardown();   // ENDED → stop, don't loop
+      };
+      window.addEventListener('message', onMsg);
+    }, MOUNT_DELAY);
 
     return () => {
-      window.removeEventListener('message', onMsg);
-      try { ifr.src = 'about:blank'; } catch { /* ignore */ }
-      ifr.remove();
+      window.clearTimeout(mountTimer);
+      if (onMsg) window.removeEventListener('message', onMsg);
+      if (ifr) { try { ifr.src = 'about:blank'; } catch { /* ignore */ } ifr.remove(); }
       iframeRef.current = null;
       hero?.classList.remove('has-trailer');
     };

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useT, useGenre } from '../i18n/i18n';
-import { useCategoryArt, type ArtSrc } from '../lib/categoryArt';
+import { catArt } from '../lib/categoryArt';
 import type { ReactNode } from 'react';
 
 /* Categories — the "browse by category" surface. Instead of dumping a movie grid,
@@ -12,12 +12,11 @@ import type { ReactNode } from 'react';
  * The gradient tiles paint instantly; the artwork fades in on top once fetched. */
 
 interface Cat {
-  key: string;              // stable react key
+  key: string;              // stable react key — also keys the curated backdrop (see catArt)
   label: string;            // display label (already localized)
   to: string;               // router destination
   h1: string; h2: string;   // duotone gradient stops (light → deep)
   icon: ReactNode;          // line-art watermark glyph
-  art: ArtSrc;              // where to pull the blended backdrop collage from
 }
 
 // tiny line-art icon set — monochrome; the tint comes from the card's gradient
@@ -52,12 +51,12 @@ const ICONS: Record<string, ReactNode> = {
 
 /* Big collection tiles — the primary browse destinations. */
 const COLLECTIONS: Cat[] = [
-  { key: 'movies',   label: 'nav.movies',           to: '/movies',                h1: '#8fb2ff', h2: '#2b357e', icon: ICONS.movies,   art: { kind: 'browse', cat: 'trending_movie' } },
-  { key: 'tv',       label: 'nav.tv_shows',          to: '/tv',                    h1: '#7be0d2', h2: '#0e6f7f', icon: ICONS.tv,       art: { kind: 'browse', cat: 'trending_tv' } },
-  { key: 'anime',    label: 'nav.anime',             to: '/anime',                 h1: '#ff9ff3', h2: '#7b3fb0', icon: ICONS.anime,    art: { kind: 'browse', cat: 'trending_anime' } },
-  { key: 'trending', label: 'explore.trending',      to: '/browse/trending_movie', h1: '#ff8a5c', h2: '#b21f3a', icon: ICONS.trending, art: { kind: 'browse', cat: 'trending_movie', skip: 3 } },
-  { key: 'top',      label: 'sec.top_movies',        to: '/browse/top_movie',      h1: '#ffd66b', h2: '#b07d1e', icon: ICONS.top,      art: { kind: 'browse', cat: 'top_movie' } },
-  { key: 'upcoming', label: 'sec.upcoming_movies',   to: '/browse/upcoming_movie', h1: '#b18cff', h2: '#4b2bb0', icon: ICONS.upcoming, art: { kind: 'browse', cat: 'upcoming_movie' } },
+  { key: 'movies',   label: 'nav.movies',           to: '/movies',                h1: '#8fb2ff', h2: '#2b357e', icon: ICONS.movies },
+  { key: 'tv',       label: 'nav.tv_shows',          to: '/tv',                    h1: '#7be0d2', h2: '#0e6f7f', icon: ICONS.tv },
+  { key: 'anime',    label: 'nav.anime',             to: '/anime',                 h1: '#ff9ff3', h2: '#7b3fb0', icon: ICONS.anime },
+  { key: 'trending', label: 'explore.trending',      to: '/browse/trending_movie', h1: '#ff8a5c', h2: '#b21f3a', icon: ICONS.trending },
+  { key: 'top',      label: 'sec.top_movies',        to: '/browse/top_movie',      h1: '#ffd66b', h2: '#b07d1e', icon: ICONS.top },
+  { key: 'upcoming', label: 'sec.upcoming_movies',   to: '/browse/upcoming_movie', h1: '#b18cff', h2: '#4b2bb0', icon: ICONS.upcoming },
 ];
 
 /* Genre wall — each drills into the Explore page pre-filtered to that genre. The
@@ -85,21 +84,22 @@ const GENRES: Array<{ key: string; g: string; h1: string; h2: string; icon: Reac
 
 /* Streaming networks — reuse the provider browse cats behind the home rails. */
 const NETWORKS: Cat[] = [
-  { key: 'netflix',    label: 'sec.netflix',    to: '/browse/prov_netflix',    h1: '#ff5a5a', h2: '#7a0d12', icon: ICONS.network, art: { kind: 'browse', cat: 'prov_netflix' } },
-  { key: 'disney',     label: 'sec.disney',     to: '/browse/prov_disney',     h1: '#4fa5ff', h2: '#0b2b6b', icon: ICONS.network, art: { kind: 'browse', cat: 'prov_disney' } },
-  { key: 'prime',      label: 'sec.prime',      to: '/browse/prov_prime',      h1: '#5cc6ff', h2: '#0a5a8f', icon: ICONS.network, art: { kind: 'browse', cat: 'prov_prime' } },
-  { key: 'apple',      label: 'sec.apple',      to: '/browse/prov_apple',      h1: '#cfd4dc', h2: '#2a2e35', icon: ICONS.network, art: { kind: 'browse', cat: 'prov_apple' } },
-  { key: 'max',        label: 'sec.max',        to: '/browse/prov_max',        h1: '#8a6cff', h2: '#2a1f7a', icon: ICONS.network, art: { kind: 'browse', cat: 'prov_max' } },
-  { key: 'paramount',  label: 'sec.paramount',  to: '/browse/prov_paramount',  h1: '#5c94ff', h2: '#12357a', icon: ICONS.network, art: { kind: 'browse', cat: 'prov_paramount' } },
-  { key: 'crunchyroll',label: 'sec.crunchyroll',to: '/browse/prov_crunchyroll',h1: '#ff8a3d', h2: '#b2461f', icon: ICONS.network, art: { kind: 'browse', cat: 'prov_crunchyroll' } },
+  { key: 'netflix',    label: 'sec.netflix',    to: '/browse/prov_netflix',    h1: '#ff5a5a', h2: '#7a0d12', icon: ICONS.network },
+  { key: 'disney',     label: 'sec.disney',     to: '/browse/prov_disney',     h1: '#4fa5ff', h2: '#0b2b6b', icon: ICONS.network },
+  { key: 'prime',      label: 'sec.prime',      to: '/browse/prov_prime',      h1: '#5cc6ff', h2: '#0a5a8f', icon: ICONS.network },
+  { key: 'apple',      label: 'sec.apple',      to: '/browse/prov_apple',      h1: '#cfd4dc', h2: '#2a2e35', icon: ICONS.network },
+  { key: 'max',        label: 'sec.max',        to: '/browse/prov_max',        h1: '#8a6cff', h2: '#2a1f7a', icon: ICONS.network },
+  { key: 'paramount',  label: 'sec.paramount',  to: '/browse/prov_paramount',  h1: '#5c94ff', h2: '#12357a', icon: ICONS.network },
+  { key: 'crunchyroll',label: 'sec.crunchyroll',to: '/browse/prov_crunchyroll',h1: '#ff8a3d', h2: '#b2461f', icon: ICONS.network },
 ];
 
-/* One category tile. Renders the gradient + label immediately, then lazily
- * blends a few real backdrops from that category behind the text once fetched. */
+/* One category tile. Renders the gradient + label immediately; its curated
+ * backdrop is a static URL (see catArt) so it paints straight from TMDB's CDN
+ * with no backend round-trip, fading in on mount via the .catcard-art keyframe. */
 function Tile({ c, cls, label }: { c: Cat; cls: string; label: string }) {
   const nav = useNavigate();
-  const { data: shots } = useCategoryArt(c.key, c.art);
-  const hasArt = !!shots && shots.length > 0;
+  const art = catArt(c.key);
+  const hasArt = !!art;
 
   return (
     <button
@@ -111,9 +111,7 @@ function Tile({ c, cls, label }: { c: Cat; cls: string; label: string }) {
     >
       {hasArt && (
         <span className="catcard-art" aria-hidden="true">
-          {shots!.map((u, i) => (
-            <span key={i} className="catcard-shot" style={{ backgroundImage: `url("${u}")` }} />
-          ))}
+          <span className="catcard-shot" style={{ backgroundImage: `url("${art}")` }} />
         </span>
       )}
       {hasArt && <span className="catcard-scrim" aria-hidden="true" />}
@@ -162,7 +160,6 @@ export default function Categories() {
                   h1: c.h1,
                   h2: c.h2,
                   icon: c.icon,
-                  art: { kind: 'genre', g: c.g },
                 }}
                 cls="catcard"
                 label={genreT(c.g)}

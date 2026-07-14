@@ -2,10 +2,16 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from './api';
 import type { HomePayload, Row, MediaItem, MediaType, MetaDetail, SeasonEpisodes } from './types';
 import { useLang } from '../i18n/i18n';
+import { usePlayer } from '../stores/player';
 
 /* Query hooks — one per backend read. The `lang` query param is threaded from
  * the active UI language so the API can localize titles/logos. As screens land
  * in later phases they consume these; a couple are wired now to prove the path. */
+
+// Refetch-on-focus gate: while the full-screen player is open on top, the page
+// behind it is hidden, so a focus bounce (fullscreen/PiP toggle, the modal's
+// trailer iframe) must NOT fan out into home/meta refetches. Resumes on close.
+const refetchFocusUnlessPlaying = () => !usePlayer.getState().source;
 
 export function useHome() {
   const { lang } = useLang();
@@ -15,7 +21,7 @@ export function useHome() {
     // admin-editable content (covers, titles, Featured Hero) — mirror the API's
     // max-age=60 and refresh on tab focus so admin edits appear within ~a minute
     staleTime: 60 * 1000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: refetchFocusUnlessPlaying,
   });
 }
 
@@ -57,7 +63,7 @@ export function useMeta(id: string | number | undefined, type?: MediaItem['type'
     },
     // admin cover/title overrides — refresh quickly instead of caching 10 min
     staleTime: 60 * 1000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: refetchFocusUnlessPlaying,
   });
 }
 

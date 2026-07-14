@@ -119,6 +119,7 @@ export default function DetailModal() {
   const open = useModal((s) => s.open);
   const close = useModal((s) => s.close);
   const playSource = usePlayer((s) => s.play);
+  const playerOpen = usePlayer((s) => !!s.source);
   const mylist = useLibrary((s) => s.mylist);
   const toggleList = useLibrary((s) => s.toggle);
   const user = useAuth((s) => s.user);
@@ -144,7 +145,11 @@ export default function DetailModal() {
 
   const isTv = target?.type === 'tv' || target?.type === 'series';
   const { data: meta, isError: metaError } = useMeta(target?.id, target?.type);
-  const { muted, toggleMute } = useTrailer(slotRef, heroRef, meta?.trailerKey || undefined, meta?.title || target?.title || '');
+  // While the player is open on top, drop the trailer key so useTrailer tears the
+  // autoplaying YouTube iframe down (it kept streaming a whole second video behind the
+  // player). The modal's `target` stays set, so closing the player restores it — and
+  // the trailer remounts — exactly where the user left off.
+  const { muted, toggleMute } = useTrailer(slotRef, heroRef, playerOpen ? undefined : (meta?.trailerKey || undefined), meta?.title || target?.title || '');
 
   // reset backdrop fade + scroll on each new title; seed the picked episode from a
   // Continue-Watching resume so OPEN builds the exact-episode key (id:S#E#)

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { MediaItem } from '../lib/types';
 import { apiFetch } from '../lib/api';
 import { useAuth } from './auth';
+import { usePlayer } from './player';
 
 /* My List (watchlist) — localStorage-backed with cross-device server sync, the
  * same model the history store uses (see stores/history.ts). localStorage,
@@ -140,7 +141,9 @@ export const useLibrary = create<LibraryState>((set, get) => {
 /* Global sync triggers (registered once): re-pull on tab focus / visibility (rate-
  * limited) and flush a pending push before the page goes away. */
 if (typeof window !== 'undefined') {
-  const maybePull = () => { const s = useLibrary.getState(); if (useAuth.getState().user && Date.now() - lastPull > PULL_MIN) s.pull(); };
+  // Skip the focus/visibility pull while the player is open (see history.ts) — the
+  // page behind it is hidden and focus can bounce; pulls resume once it closes.
+  const maybePull = () => { const s = useLibrary.getState(); if (useAuth.getState().user && !usePlayer.getState().source && Date.now() - lastPull > PULL_MIN) s.pull(); };
   window.addEventListener('visibilitychange', () => { if (!document.hidden) maybePull(); });
   window.addEventListener('focus', maybePull);
   window.addEventListener('pagehide', () => useLibrary.getState().flush(true));

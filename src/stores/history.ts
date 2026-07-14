@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { apiFetch } from '../lib/api';
 import { useAuth } from './auth';
+import { usePlayer } from './player';
 import { heartLib, type Library } from '../lib/heartLibrary';
 
 /* Continue Watching: watch history + resume progress + removal tombstones —
@@ -188,7 +189,10 @@ export const useHistory = create<HistoryState>((set, get) => {
 /* Global sync triggers (registered once): re-pull on tab focus / visibility (rate-
  * limited) and flush a pending push before the page goes away. */
 if (typeof window !== 'undefined') {
-  const maybePull = () => { const s = useHistory.getState(); if (useAuth.getState().user && Date.now() - lastPull > PULL_MIN) s.pull(); };
+  // Skip the focus/visibility pull while the player is open — we're mid-watch, the
+  // page behind it is hidden, and progress is still being pushed. (Focus can bounce
+  // repeatedly from fullscreen/PiP toggles.) Pulls resume once the player closes.
+  const maybePull = () => { const s = useHistory.getState(); if (useAuth.getState().user && !usePlayer.getState().source && Date.now() - lastPull > PULL_MIN) s.pull(); };
   window.addEventListener('visibilitychange', () => { if (!document.hidden) maybePull(); });
   window.addEventListener('focus', maybePull);
   window.addEventListener('pagehide', () => useHistory.getState().flush(true));

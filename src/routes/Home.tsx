@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useHome } from '../lib/queries';
 import { useT } from '../i18n/i18n';
@@ -29,6 +30,15 @@ export default function Home() {
   const onSelect = (item: MediaItem) => openModal(openItem(item));
   const onAdd = (item: MediaItem) => toggleList({ id: item.id, type: item.type, title: item.title, year: item.year, rating: item.rating, poster: item.poster });
   const onSeeAll = (cat: string) => nav(`/browse/${cat}`);
+  // Stabilise across renders: the inline .filter() used to hand Hero a brand-new
+  // array every render, which forced Hero to rebuild its whole track and re-download
+  // every backdrop. React Query's structural sharing keeps `hero.results` identity
+  // stable across refetches, so this memo only changes when the hero set really does.
+  // (Declared before the early returns so the Hook order stays unconditional.)
+  const heroItems = useMemo(
+    () => (data?.hero?.results ?? []).filter((m) => m.backdrop || m.poster),
+    [data?.hero?.results],
+  );
 
   if (isLoading) return <section className="page active" id="browse"><p style={{ padding: 24, color: '#888' }}>{t('common.loading')}</p></section>;
   if (isError) {
@@ -53,7 +63,6 @@ export default function Home() {
   const studiosVisible = heartVisible ? heartVisible.includes('studios') : config.studios;
 
   const rows = data?.rows ?? {};
-  const heroItems = (data?.hero?.results ?? []).filter((m) => m.backdrop || m.poster);
   const upMovies = data?.upcoming?.movie ?? [];
   const upSeries = data?.upcoming?.series ?? [];
 

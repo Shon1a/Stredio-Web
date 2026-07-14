@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { MediaItem } from '../lib/types';
+import { usePlayer } from '../stores/player';
 import { useT, useGenre } from '../i18n/i18n';
 import {
   HERO_MAX, dedupeFeatured, heroBgUrl, heroFallbackGradient, heroThumbUrl,
@@ -75,6 +76,17 @@ export default function Hero({ items, onPlay, onAdd }: HeroProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const thumbsTrackRef = useRef<HTMLDivElement>(null);
   const ctrl = useRef<Ctrl>({ w: 0, pos: 0, i: 0, rm: false, go: () => {} });
+
+  // Freeze the autoplay carousel while the full-screen player is open on top: no
+  // point rotating (and lazy-loading a fresh full-viewport backdrop every 4s) behind
+  // an opaque overlay. Uses the same `paused` class the hover/focus pause uses, so
+  // the thumb-fill clock resumes exactly where it left off once the player closes.
+  const playerOpen = usePlayer((s) => !!s.source);
+  useEffect(() => {
+    const root = rootRef.current; if (!root) return;
+    if (playerOpen) root.classList.add('paused');
+    else if (!root.matches(':hover') && !root.contains(document.activeElement)) root.classList.remove('paused');
+  }, [playerOpen]);
 
   const looped = slides.length > 1;
   const N = slides.length;

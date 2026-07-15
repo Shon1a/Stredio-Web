@@ -14,7 +14,22 @@
     /* surfaces — premium monochrome grade: near-black canvas, neutral elevated glass */
     --bg:#000000; --bg-deep:#000000; --bg-2:#000000; --bg-3:#000000; --surface:#000000;
     /* neutral white-alpha glass + hairline (no brand pigment) */
-    --card:rgba(255,255,255,0.045); --border:rgba(255,255,255,0.10);
+    --card:rgba(255,255,255,0.045);
+    /* Borderless: nothing is outlined any more — shape comes from a surface, not a line.
+       Kept as a transparent token rather than deleted so the ~45 `border:1px solid
+       var(--border)` rules keep reserving their 1px and no layout shifts. Anything that
+       needed the border to exist at all (every bg token here is pure #000, so a bordered
+       control on a black page WAS just the border) now carries --card, or #0d0d0d where it
+       must be opaque. Setting this to a colour again re-outlines the whole app. */
+    --border:rgba(255,255,255,0);
+    /* --border used to double as the fill for 1px divider RULES (the lines beside "or", the
+       modal rail label, the stream-source label). Those are typography, not outlines, so they
+       survive on their own token — a transparent --border would have deleted them outright. */
+    --hairline:rgba(255,255,255,0.10);
+    /* opaque lifted surface for panels that float over content: --card is translucent, which a
+       modal/menu cannot use (the page would show through). Matches the value already used by
+       #topbar.search-open .search. */
+    --panel:#0d0d0d;
     /* primary white type + a cool neutral gray for muted copy */
     --text:#FFFFFF; --text-muted:#8f8f8f;
     /* neutral grey ramp */
@@ -284,7 +299,7 @@
 
   /* filter dropdown (lives under the search bar) */
   .filter-panel{position:absolute;top:100%;right:0;left:auto;width:min(360px,90vw);margin-top:8px;
-    border:1px solid var(--border);border-radius:10px;padding:18px 20px;display:none;z-index:40;background:var(--bg-2);
+    border:1px solid var(--border);border-radius:10px;padding:18px 20px;display:none;z-index:40;background:var(--panel);
     box-shadow:0 20px 60px rgba(0,0,0,.6)}
   .filter-panel.open{display:block;animation:fpop .25s ease-out}
   @keyframes fpop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
@@ -292,7 +307,7 @@
   .fp-row:last-of-type{border-bottom:none}
   .fp-row > .k{width:72px;flex-shrink:0;font-size:15px;letter-spacing:.16em;color:var(--text-muted);padding-top:6px}
   .pills{display:flex;flex-wrap:wrap;gap:7px}
-  .pill-btn{font-size:16px;padding:5px 11px;border:1px solid var(--border);border-radius:20px;cursor:pointer;
+  .pill-btn{font-size:16px;padding:5px 11px;border:1px solid var(--border);border-radius:20px;cursor:pointer;background:var(--card);
     color:var(--text-muted);transition:.2s;background:none}
   .pill-btn:hover,.pill-btn.on{border-color:var(--accent);color:var(--accent)}
   .fp-row input[type=range]{width:200px;max-width:100%;box-sizing:border-box;margin-top:6px;accent-color:var(--accent)}
@@ -1167,7 +1182,7 @@
   .addon-divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:32px 0 28px}
   .addon-grid{display:flex;flex-direction:column;gap:12px}
 
-  .addon{display:flex;gap:15px;align-items:center;background:var(--surface);border:1px solid var(--border);
+  .addon{display:flex;gap:15px;align-items:center;background:var(--card);border:1px solid var(--border);
     border-radius:8px;padding:15px 18px;position:relative;overflow:hidden;transition:border-color .2s,background .2s}
   .addon:hover{border-color:rgba(var(--accent-rgb),.34);background:#242424}
   .addon.installed::after{content:"";position:absolute;inset:0;pointer-events:none;
@@ -1211,7 +1226,7 @@
   .badge.warn{background:rgba(234,100,121,.12);color:var(--danger)}
   .badge.muted{background:rgba(255,255,255,.06);color:var(--text-muted)}
   .addon .acts{display:flex;flex-direction:row;gap:8px;flex-shrink:0;align-items:center}
-  .minibtn{font-size:13.5px;padding:7px 15px;border-radius:5px;border:1px solid var(--border);background:none;
+  .minibtn{font-size:13.5px;padding:7px 15px;border-radius:5px;border:1px solid var(--border);background:var(--card);
     color:var(--text-muted);cursor:pointer;transition:.18s;white-space:nowrap}
   .minibtn:hover{border-color:var(--accent);color:var(--accent);background:rgba(var(--accent-rgb),.06)}
   .minibtn.install{border-color:rgba(var(--accent-rgb),.55);color:var(--accent)}
@@ -1314,7 +1329,7 @@
   .setting-row{display:flex;align-items:center;gap:16px;padding:15px 0;border-bottom:1px solid rgba(255,255,255,.055)}
   .set-card-body .setting-row:last-child{border-bottom:none}
   .setting-row label{flex:1 1 auto;font-size:15.5px;color:var(--text);line-height:1.4}
-  .setting-row input,.setting-row select{background-color:var(--bg-3);border:1px solid var(--border);color:var(--text);
+  .setting-row input,.setting-row select{background-color:var(--card);border:1px solid var(--border);color:var(--text);
     padding:9px 13px;border-radius:9px;font-family:var(--font-mono);font-size:15px;outline:none;
     transition:border-color .18s,box-shadow .18s}
   .setting-row input{flex:0 1 320px}
@@ -1326,7 +1341,7 @@
   /* toggle switch (Auto-Play / Blur unwatched, etc.) */
   .sw{position:relative;display:inline-flex;width:46px;height:26px;flex:0 0 auto}
   .sw input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;z-index:2}
-  .sw-track{position:absolute;inset:0;background:var(--bg-3);border:1px solid var(--border);border-radius:999px;transition:background .18s,border-color .18s}
+  .sw-track{position:absolute;inset:0;background:var(--card);border:1px solid var(--border);border-radius:999px;transition:background .18s,border-color .18s}
   .sw-track::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;
     background:#fff;transition:transform .18s;box-shadow:0 1px 3px rgba(0,0,0,.5)}
   .sw input:checked+.sw-track{background:#2ecc71;border-color:#2ecc71}
@@ -1416,7 +1431,7 @@
      anyway) means content fills in behind the load veil with no reflow. The inner
      .m-scroll still scrolls titles taller than the pane. Mobile (≤520px) overrides
      this with height:100dvh below, so it's unaffected. */
-  .modal{width:min(1180px,100%);height:92vh;max-height:92vh;background:var(--bg-2);border:1px solid var(--border);
+  .modal{width:min(1180px,100%);height:92vh;max-height:92vh;background:var(--panel);border:1px solid var(--border);
     border-radius:0;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 90px rgba(0,0,0,.6);
     transform:translateY(40px);opacity:0;transition:.4s cubic-bezier(.2,.8,.2,1);position:relative}
   .overlay.open .modal{transform:none;opacity:1}
@@ -1527,7 +1542,7 @@
   /* shared section-label spine + ka (no-caps) guard */
   .m-rail-label{font-family:var(--font-mono);font-size:13px;letter-spacing:.2em;color:var(--text-muted);
     text-transform:uppercase;display:flex;align-items:center;gap:12px;margin:0 0 14px}
-  .m-rail-label::after{content:"";flex:1;height:1px;background:var(--border)}
+  .m-rail-label::after{content:"";flex:1;height:1px;background:var(--hairline)}
   :root[data-lang="ka"] .m-rail-label,:root[data-lang="ka"] .m-kicker{text-transform:none;letter-spacing:.12em;color:var(--accent)}
 
   /* STREAMS rail head: label + lang dropdown on one row (wide screens) */
@@ -1539,7 +1554,7 @@
   /* vertical LIST rows: thumbnail + E# on the left, title on the right */
   #epList.ep-grid{display:flex;flex-direction:column;gap:8px;max-height:none;overflow:visible;padding:0}
   #epList.ep-grid .ep-row{display:flex;align-items:center;gap:14px;position:relative;border:1px solid var(--border);
-    border-radius:10px;overflow:hidden;background:var(--bg-3);cursor:pointer;text-align:left;padding:7px;
+    border-radius:10px;overflow:hidden;background:var(--card);cursor:pointer;text-align:left;padding:7px;
     transition:border-color .2s,box-shadow .2s,background .2s}
   #epList.ep-grid .ep-row:hover{border-color:rgba(var(--accent-rgb),.5);background:rgba(255,255,255,.04)}
   #epList.ep-grid .ep-row.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 8px 26px rgba(0,0,0,.4)}
@@ -1710,7 +1725,7 @@
   /* season + episode chooser (TV / anime) */
   .ep-chooser{margin-bottom:20px}
   .season-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-  .season-tab{font-family:var(--font-mono);font-size:13px;letter-spacing:.06em;padding:5px 12px;border-radius:4px;
+  .season-tab{font-family:var(--font-mono);font-size:13px;letter-spacing:.06em;padding:5px 12px;border-radius:4px;background:var(--card);
     cursor:pointer;border:1px solid var(--border);background:none;color:var(--text-muted);transition:.15s;white-space:nowrap}
   .season-tab:hover{border-color:var(--accent);color:var(--accent)}
   .season-tab.on{background:var(--accent);color:var(--ink);border-color:var(--accent)}
@@ -1725,7 +1740,7 @@
   .lang-chev{color:var(--text-muted);font-size:11px;transition:transform .25s ease}
   .lang-select.open .lang-chev{transform:rotate(180deg)}
   .lang-menu{position:absolute;z-index:30;top:calc(100% + 6px);left:0;min-width:100%;margin:0;padding:5px;
-    list-style:none;border:1px solid var(--border);border-radius:9px;background:var(--surface);box-shadow:0 14px 34px rgba(0,0,0,.45);
+    list-style:none;border:1px solid var(--border);border-radius:9px;background:var(--panel);box-shadow:0 14px 34px rgba(0,0,0,.45);
     transform-origin:top center;transform:translateY(-6px);opacity:0;pointer-events:none;
     transition:transform .18s ease,opacity .18s ease}
   .lang-select.open .lang-menu{transform:none;opacity:1;pointer-events:auto}
@@ -1769,7 +1784,7 @@
   .ep-loading{font-family:var(--font-mono);font-size:13px;color:var(--text-muted);padding:8px 0}
   .stream-source-label{font-family:var(--font-mono);font-size:13px;color:var(--text-muted);
     letter-spacing:.15em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-  .stream-source-label::after{content:"";flex:1;height:1px;background:var(--border)}
+  .stream-source-label::after{content:"";flex:1;height:1px;background:var(--hairline)}
   .quality-badge{font-family:var(--font-mono);font-size:13px;font-weight:500;padding:3px 8px;border-radius:3px;flex-shrink:0}
   .q-4k{background:rgba(255,255,255,.15);color:var(--accent)}
   .q-1080{background:rgba(240,240,240,.08);color:#ccc}
@@ -1825,7 +1840,7 @@
   .m-src-select.open .m-src-chev{transform:rotate(180deg)}
 
   .m-src-menu{position:absolute;top:calc(100% + 6px);left:0;min-width:100%;margin:0;padding:5px;
-    list-style:none;border:1px solid var(--border);border-radius:9px;background:var(--surface);
+    list-style:none;border:1px solid var(--border);border-radius:9px;background:var(--panel);
     box-shadow:0 14px 34px rgba(0,0,0,.45);z-index:20;
     transform-origin:top center;transform:translateY(-6px);opacity:0;pointer-events:none;
     transition:transform .18s ease,opacity .18s ease}
@@ -2013,7 +2028,7 @@
     border:1px solid rgba(var(--accent-rgb),.38);border-radius:4px;padding:2px 6px;line-height:1;flex-shrink:0}
   .vp-opt .vp-instant svg{width:9px;height:9px;fill:currentColor}
   .vp-speeds{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:2px 14px 6px}
-  .vp-speed{font-family:var(--font-mono);font-size:13px;padding:7px 0;border-radius:8px;cursor:pointer;text-align:center;
+  .vp-speed{font-family:var(--font-mono);font-size:13px;padding:7px 0;background:var(--card);border-radius:8px;cursor:pointer;text-align:center;
     border:1px solid var(--border);color:var(--text-muted);background:none;transition:.15s}
   .vp-speed:hover{border-color:var(--accent);color:var(--accent)}
   .vp-speed.on{background:var(--accent);color:var(--ink);border-color:var(--accent);font-weight:600}
@@ -2087,7 +2102,7 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .vp-eppanel-head .lbl{font-family:var(--font-mono);font-size:12px;letter-spacing:.2em;color:var(--text-muted)}
   .vp-eppanel-seasons{display:flex;gap:8px;flex-wrap:wrap;margin:14px 4px;max-height:96px;overflow-y:auto}
-  .vp-season-tab{font-family:var(--font-mono);font-size:13px;letter-spacing:.04em;padding:5px 13px;border-radius:20px;
+  .vp-season-tab{font-family:var(--font-mono);font-size:13px;letter-spacing:.04em;padding:5px 13px;background:var(--card);border-radius:20px;
     cursor:pointer;border:1px solid var(--border);background:none;color:var(--text-muted);transition:.15s;white-space:nowrap}
   .vp-season-tab:hover{border-color:var(--accent);color:var(--accent)}
   .vp-season-tab.on{background:var(--accent);color:var(--ink);border-color:var(--accent)}
@@ -2238,7 +2253,7 @@
     padding:24px;background:rgba(16,16,16,.86);backdrop-filter:blur(8px)}
   .auth-overlay.open{display:flex;animation:authfade .3s ease-out}
   @keyframes authfade{from{opacity:0}to{opacity:1}}
-  .auth-card{position:relative;width:min(420px,100%);background:linear-gradient(180deg,#000000,#070707);
+  .auth-card{position:relative;width:min(420px,100%);background:linear-gradient(180deg,#0d0d0d,#0a0a0a);
     border:1px solid var(--border);border-radius:10px;padding:38px 34px 28px;
     box-shadow:0 30px 90px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.06);
     transform:translateY(18px) scale(.985);opacity:0;transition:.32s cubic-bezier(.2,.8,.2,1)}
@@ -2252,7 +2267,7 @@
   .auth-word{font-size:19px;letter-spacing:.18em;font-weight:300}
   .auth-word b{font-weight:500;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
   .auth-kicker{font-size:15px;letter-spacing:.12em;color:var(--text-muted);margin:2px 0 24px}
-  .auth-tabs{display:flex;gap:6px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;
+  .auth-tabs{display:flex;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:6px;
     padding:4px;margin-bottom:22px}
   .auth-tab{flex:1;background:none;border:none;color:var(--text-muted);font-family:var(--font-mono);
     font-size:16px;letter-spacing:.14em;padding:9px 0;border-radius:4px;cursor:pointer;transition:.2s}
@@ -2266,10 +2281,10 @@
   .auth-google-btn{display:flex;justify-content:center;min-height:40px}
   .auth-or{display:flex;align-items:center;gap:12px;color:var(--text-muted);
     font-size:13px;letter-spacing:.2em;text-transform:uppercase;margin:16px 0 4px}
-  .auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:var(--border)}
+  .auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:var(--hairline)}
   .auth-field input[type=date]{font-family:var(--font-mono);color-scheme:dark}
   .auth-field > label{display:block;font-size:13px;letter-spacing:.2em;color:var(--text-muted);margin-bottom:7px}
-  .auth-field input{width:100%;background:var(--bg-3);border:1px solid var(--border);color:var(--text);
+  .auth-field input{width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);
     padding:12px 13px;border-radius:5px;font-family:var(--font-mono);font-size:17px;outline:none;transition:.2s}
   .auth-field input::placeholder{color:var(--text-muted)}
   .auth-field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,255,255,.12)}
@@ -2304,7 +2319,7 @@
   .addon .ic.studios{background:radial-gradient(circle at 50% 50%,rgba(var(--accent-rgb),.20),rgba(var(--accent-rgb),.05) 72%);font-size:21px}
   /* ---- option-row checkbox list (add-on configure: catalog-row / provider pickers) ---- */
   .optrow-list{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px}
-  .optrow{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid var(--border);
+  .optrow{display:flex;align-items:center;gap:11px;padding:11px 13px;background:var(--card);border:1px solid var(--border);
     border-radius:6px;cursor:pointer;transition:.15s;font-size:16px;color:var(--text);user-select:none}
   .optrow:hover{border-color:rgba(255,255,255,.35)}
   .optrow.on{border-color:var(--accent);background:rgba(255,255,255,.08)}

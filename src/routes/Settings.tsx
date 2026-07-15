@@ -1,5 +1,6 @@
 import { useT, useLang } from '../i18n/i18n';
 import { useSettings, type Settings as S } from '../stores/settings';
+import ColorPicker from '../components/ColorPicker';
 
 /* Settings — faithful port of the vanilla #settings: a 5-card .settings-grid
  * (Interface / Auto-play / Player·Subtitles / Playback preferences / Advanced) with
@@ -113,7 +114,7 @@ export default function Settings() {
           </div>
           <div className="setting-row">
             <label>{t('settings.sub_color')}</label>
-            <input type="color" value={settings.subColor} onChange={(e) => update({ subColor: e.target.value })} aria-label={t('settings.sub_color')} />
+            <ColorPicker value={settings.subColor} onChange={set('subColor')} label={t('settings.sub_color')} />
           </div>
           <div className="setting-row">
             <label>{t('settings.sub_bg')}</label>
@@ -130,7 +131,7 @@ export default function Settings() {
           <div className="setting-row">
             <label>{t('settings.sub_outline')}</label>
             <div className="ctl-group">
-              <input type="color" value={settings.subOutline} onChange={(e) => update({ subOutline: e.target.value })} aria-label={t('settings.sub_outline')} />
+              <ColorPicker value={settings.subOutline} onChange={set('subOutline')} label={t('settings.sub_outline')} />
               <select className="set-outline-w" value={settings.subOutlineW} onChange={(e) => update({ subOutlineW: +e.target.value })} aria-label={t('settings.sub_outline_w')}>
                 {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}
               </select>

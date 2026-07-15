@@ -206,6 +206,12 @@ const SEED: Record<string, string> = {
   'settings.sub_size': 'Subtitle size',
   'settings.blur_unwatched': 'Blur unwatched episode stills',
   'settings.sub_preview': 'The quick brown fox',
+  // colour picker — the saturation/brightness square and the hue rail have no visible
+  // label of their own, so they carry aria-only names (_a, per ctl.play_a / ui.nav_toggle_a).
+  // The trigger reuses the row's visible settings.sub_color / sub_outline key instead.
+  'settings.sub_sat_a': 'Saturation',
+  'settings.sub_val_a': 'Brightness',
+  'settings.sub_hue_a': 'Hue',
 
   // addons
   'addons.title': 'Add-ons',

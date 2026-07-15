@@ -1316,13 +1316,6 @@
   .sw input:checked+.sw-track{background:#2ecc71;border-color:#2ecc71}
   .sw input:checked+.sw-track::after{transform:translateX(20px)}
   .sw input:focus-visible+.sw-track{box-shadow:0 0 0 3px rgba(46,204,113,.35)}
-  /* color swatch inputs (subtitle color / outline) */
-  .setting-row input[type=color]{flex:0 0 auto;width:130px;height:42px;padding:5px;border-radius:999px;
-    background:var(--bg-3);border:1px solid var(--border);cursor:pointer;transition:border-color .18s,box-shadow .18s}
-  .setting-row input[type=color]:hover{border-color:rgba(var(--accent-rgb),.5)}
-  .setting-row input[type=color]::-webkit-color-swatch-wrapper{padding:0}
-  .setting-row input[type=color]::-webkit-color-swatch{border:none;border-radius:999px}
-  .setting-row input[type=color]::-moz-color-swatch{border:none;border-radius:999px}
   /* Interface › "Blur unwatched episodes image" — stills of episodes you haven't
      started are blurred until hovered (both the modal grid and the in-player panel). */
   .blur-unwatched #epList.ep-grid .ep-row:not(.watched):not(.on) .ep-still img,
@@ -1362,6 +1355,87 @@
       linear-gradient(45deg,#5a5a5a 25%,transparent 25%),linear-gradient(-45deg,#5a5a5a 25%,transparent 25%),
       linear-gradient(45deg,transparent 75%,#5a5a5a 75%),linear-gradient(-45deg,transparent 75%,#5a5a5a 75%);
     background-size:12px 12px;background-position:0 0,0 6px,6px -6px,-6px 0}
+
+  /* ── colour picker (subtitle colour / outline) ──
+     Replaces the two native <input type=color>, whose rules used to sit just above .swatch
+     and are gone with them — nothing renders an input[type=color] any more. The trigger
+     reproduces their exact geometry (130x42, padding:5px, 999px on both the pill and the
+     inner swatch) so the rows don't reflow and the control still reads as native.
+
+     The panel is position:FIXED, not absolute. .set-card{overflow:hidden} is load-bearing —
+     it clips .set-card-head's gradients to the 16px radius — and it shears an absolute
+     popover to a ~2px sliver at any z-index, because clipping is not a stacking question;
+     .settings-grid is a multicol fragmentation context on top of that. Coords come from
+     getBoundingClientRect(), so width/height here are PINNED (box-sizing:border-box makes
+     them exact) and MUST stay in sync with PANEL_W/PANEL_H in ColorPicker.tsx — that is what
+     lets the flip/clamp math be arithmetic instead of a measurement. This only works while
+     the settings chain stays free of containing-block creators: add a transform to .set-card
+     (its transition at the top of this section already LISTS one), .set-card-body,
+     .settings-grid, .page, main or .shell and this silently breaks. z-index 71 clears
+     #topbar (25/65) and the mobile floating search (70); it can't escape .shell{z-index:2},
+     which is fine — nothing above it opens over Settings.
+
+     Every rule below is scoped under .set-color for SPECIFICITY, not tidiness:
+     - The panel is still a DOM descendant of .setting-row (fixed changes layout, not
+       ancestry), so `.setting-row input` (0-1-1) matches these ranges and would hand the hue
+       rail padding:9px 13px, a 9px radius and — worst — flex:0 1 320px, which in this
+       column-flex panel means a 320px-TALL hue slider. `.set-color .set-color-hue` (0-2-0)
+       beats it; the :focus-visible pair (0-3-0) beats `.setting-row input:focus-visible`.
+     - The pill is scoped for the same reason at the top level: the global focus ring sets
+       `border-radius:4px` (see 'focus visibility' near the top of this file) at (0-1-1), so
+       an unscoped `.set-color-pill` (0-1-0) LOSES and the pill squares off into a rectangle
+       with a 999px lozenge stranded inside it on every keyboard focus. (0-2-0) wins.
+
+     Focus is the 3px glow, never an outline: .setting-row's own `outline:none` already
+     defeats the global ring by source order, and the coarse-pointer block near the bottom of
+     this file strips outlines on touch — the glow survives both. No local
+     prefers-reduced-motion block: the global one resets transition-duration and there is no
+     stagger/delay here to rescue, unlike .m-src-select. */
+  .set-color{position:relative;flex:0 0 auto}
+  .set-color .set-color-pill{width:130px;height:42px;padding:5px;border-radius:999px;background:var(--bg-3);
+    border:1px solid var(--border);cursor:pointer;transition:border-color .18s,box-shadow .18s}
+  .set-color .set-color-pill:hover{border-color:rgba(var(--accent-rgb),.5)}
+  .set-color .set-color-pill:focus-visible{outline:none;border-radius:999px;border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(var(--accent-rgb),.2)}
+  /* The inset ring is the one departure from the native swatch (which drew border:none):
+     --bg-3 is #000000, so the outline picker's default #000000 was a black lozenge on a
+     black pill — invisible. This is the .swatch hairline idiom above, not a new one. */
+  .set-color-sw{display:block;width:100%;height:100%;border-radius:999px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+
+  .set-color-panel{position:fixed;width:220px;height:182px;padding:10px;display:flex;flex-direction:column;gap:8px;
+    border:1px solid var(--border);border-radius:9px;background:var(--surface);
+    box-shadow:0 14px 34px rgba(0,0,0,.45);z-index:71;
+    transform-origin:top center;transform:translateY(-6px);opacity:0;pointer-events:none;
+    transition:transform .18s ease,opacity .18s ease}
+  .set-color.open .set-color-panel{transform:none;opacity:1;pointer-events:auto}
+
+  /* flex:1 resolves to 140px tall (182 − 2 border − 20 padding − 8 gap − 12 hue), so the
+     square's size follows the panel and there is no second magic number to keep aligned.
+     touch-action:none or a touch drag scrolls the page instead of picking a colour. */
+  .set-color-sv{flex:1;position:relative;border-radius:6px;cursor:crosshair;touch-action:none;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+  .set-color-sv:focus-within{box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 0 0 3px rgba(var(--accent-rgb),.2)}
+  .set-color-thumb{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;
+    pointer-events:none;box-shadow:inset 0 0 0 2px #fff,0 1px 3px rgba(0,0,0,.5)}
+
+  /* The saturation/brightness keyboard surface. NOT display:none / visibility:hidden /
+     hidden — all three would drop them out of the tab order and take the picker's keyboard
+     support with them. 1px + opacity:0 keeps them focusable and in the a11y tree; the ring
+     shows on .set-color-sv:focus-within above. */
+  .set-color .set-color-k{position:absolute;width:1px;height:1px;margin:0;padding:0;border:0;
+    opacity:0;pointer-events:none}
+
+  .set-color .set-color-hue{flex:none;height:12px;margin:0;padding:0;border:0;border-radius:999px;
+    appearance:none;-webkit-appearance:none;cursor:pointer;
+    background:linear-gradient(to right,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%)}
+  .set-color .set-color-hue:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(var(--accent-rgb),.2)}
+  /* -webkit- and -moz- thumbs MUST stay in separate rules: one unknown pseudo-element in a
+     selector list drops the whole rule in the other engine. */
+  .set-color .set-color-hue::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:16px;height:16px;
+    border-radius:50%;background:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+  .set-color .set-color-hue::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:50%;
+    background:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.5)}
 
   /* signal-bars glyph rendered inside the Auto-quality dropdown (left); chevron stays right */
   .setting-row select.sel-signal{padding-left:42px;
@@ -2113,7 +2187,10 @@
     .setting-row label{flex:1 1 100%}
     .setting-row select,.setting-row input{flex:1 1 100%;max-width:none}
     .setting-row .sw{margin-left:auto}
-    .setting-row input[type=color]{flex:0 0 auto;width:100%}
+    /* the bare colour pill goes full width like the inputs above; the child combinator
+       keeps the one paired with a select inside .ctl-group at its natural 130px */
+    .setting-row > .set-color{flex:1 1 100%}
+    .setting-row > .set-color .set-color-pill{width:100%}
     .install-box{flex-wrap:wrap}
     .install-box button{width:100%}
   }

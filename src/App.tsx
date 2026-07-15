@@ -21,9 +21,9 @@ import DetailModal from './components/DetailModal/DetailModal';
 import VideoPlayer from './components/VideoPlayer/VideoPlayer';
 import AuthModal from './components/AuthModal';
 
-/* Hash routing — matches Stremio's web app (React Router in hash mode) and needs
- * zero server config (any static host works, no catch-all rewrite). A legacy
- * #home → #/ redirect for old bookmarks gets added in Phase 1. */
+/* Hash routing (React Router in hash mode) — needs zero server config, so any static
+ * host works with no catch-all rewrite. A legacy #home → #/ redirect for old bookmarks
+ * gets added in Phase 1. */
 export default function App() {
   const refresh = useAuth((s) => s.refresh);
   const loadConfig = useAuth((s) => s.loadConfig);

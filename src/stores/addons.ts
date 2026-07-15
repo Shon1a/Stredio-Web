@@ -41,9 +41,15 @@ function serverRemove(id: string) {
   api(`/api/addons/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
 }
 
-/** Accept a base URL or a full manifest URL; return the manifest URL. */
+/** Accept a base URL or a full manifest URL; return the manifest URL.
+ *  Add-on links are commonly shared under a custom app scheme (scheme://host/manifest.json)
+ *  so that clicking one opens a native client. Any non-http(s) scheme is rewritten to https
+ *  so the manifest is fetchable from a browser. The rewrite is load-bearing, not cosmetic:
+ *  without it the scheme survives, fails the http(s) test, and gets a second scheme
+ *  prepended — "https://myapp://host/manifest.json". Mirrors normalizeManifestUrl() in
+ *  Stredio-server/server/server.js; keep the two in step. */
 export function normalizeManifestUrl(raw: string): string {
-  let u = raw.trim().replace(/^stremio:\/\//, 'https://').replace(/\/+$/, '');
+  let u = raw.trim().replace(/^(?!https?:\/\/)[a-z][a-z0-9+.-]*:\/\//i, 'https://').replace(/\/+$/, '');
   if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
   if (!/manifest\.json$/i.test(u)) u += '/manifest.json';
   return u;

@@ -1,7 +1,6 @@
 /* Stredio-Heart — the reusable Rust core, compiled to WebAssembly and loaded from
- * jsDelivr (github.com/Shon1a/Stredio-Heart), the same way Stremio's web app loads
- * @stremio/stremio-core-web. The core owns the domain logic; the React shell drives
- * it and renders its JSON snapshots.
+ * jsDelivr (github.com/Shon1a/Stredio-Heart). The core owns the domain logic; the
+ * React shell drives it and renders its JSON snapshots.
  *
  * Currently wired: AddonRuntime (official add-on merge). CatalogRuntime (home-row
  * gating) and LibraryRuntime (continue-watching) are exposed by the core too and can

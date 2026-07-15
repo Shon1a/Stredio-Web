@@ -2,19 +2,19 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-/* These two mirror PUBLIC_CATALOG_GET and ADMIN_CURATED_GET in Stredio-server/server/server.js —
- * keep them in step. ONLY routes matched here may be cached by the service worker. Everything
- * else — /api/auth/*, /api/addons, /api/addon-state, /api/library-state, /api/config — is
- * per-user and must always hit the network: a cached /api/auth/me would hand one person's
- * session to the next user of a shared device. This is an allowlist, so a route added to the
- * API later stays uncached until it is listed here.
+/* The urlPattern regexes below are written inline ON PURPOSE. workbox's generateSW mode
+ * stringifies each urlPattern function straight into dist/sw.js, so the function body must be
+ * self-contained: anything it closes over from this module — a `const PATTERN = /…/` up here —
+ * is NOT emitted, and the pattern throws ReferenceError inside the worker. Workbox catches
+ * that, the route silently never matches, and the response is never cached. It builds, it
+ * typechecks, and it does nothing. Verify with: grep -c 'const.*API' dist/sw.js
  *
- * The split matters. The server sends the curated routes `public, no-cache` on purpose, so an
- * admin's cover/title edit shows up without a hard reload; the catalog routes get
- * `max-age=600, stale-while-revalidate=86400` because they change slowly. Caching both the
- * same way would silently undo that decision, so each gets the handler that preserves it. */
-const ADMIN_CURATED_API = /^\/api\/(home|hero)\b/
-const PUBLIC_CATALOG_API = /^\/api\/(catalog|search|genres|browse|meta\/|tv\/|introdb\/)/
+ * The two route groups mirror ADMIN_CURATED_GET and PUBLIC_CATALOG_GET in
+ * Stredio-server/server/server.js — keep them in step. ONLY routes matched below may be
+ * cached. Everything else — /api/auth/*, /api/addons, /api/addon-state, /api/library-state,
+ * /api/config — is per-user and must always hit the network: a cached /api/auth/me would hand
+ * one person's session to the next user of a shared device. It is an allowlist, so a route
+ * added to the API later stays uncached until it is listed here. */
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -41,7 +41,7 @@ export default defineConfig({
             // the last good copy. That 3s is the whole trick: a sleeping free-tier backend takes
             // 30-60s to wake, so without this the home page is blank for a minute. Live server →
             // fresh data, same as today. Sleeping server → instant page from cache.
-            urlPattern: ({ url }) => url.hostname.endsWith('.onrender.com') && ADMIN_CURATED_API.test(url.pathname),
+            urlPattern: ({ url }) => url.hostname.endsWith('.onrender.com') && /^\/api\/(home|hero)\b/.test(url.pathname),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'stredio-api-curated',
@@ -54,7 +54,7 @@ export default defineConfig({
             // Catalog rows/search/meta. The server already declares these stale-while-revalidate
             // for 24h, so mirror that: serve instantly from cache, refresh in the background. If
             // the backend is cold or down the refresh just fails and the cached copy stands.
-            urlPattern: ({ url }) => url.hostname.endsWith('.onrender.com') && PUBLIC_CATALOG_API.test(url.pathname),
+            urlPattern: ({ url }) => url.hostname.endsWith('.onrender.com') && /^\/api\/(catalog|search|genres|browse|meta\/|tv\/|introdb\/)/.test(url.pathname),
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'stredio-api-catalog',

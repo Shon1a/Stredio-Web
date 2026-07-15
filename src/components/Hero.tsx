@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { flushSync } from 'react-dom';
 import type { MediaItem } from '../lib/types';
 import { usePlayer } from '../stores/player';
 import { useT, useGenre } from '../i18n/i18n';
@@ -21,6 +22,20 @@ import {
  * current. */
 
 const HERO_DELAY_MS = 4000;
+/* The pinned overlay's exit window, and the JS half of --hero-swap (wired together on the
+ * root below, so there is one source of truth — the same trick --hero-delay already uses).
+ *
+ * Why 200. The copy is PINNED at the left (.hero-inner is max-width:660px, left-aligned) and
+ * an advance slides the outgoing cell LEFTWARD — so that cell keeps covering the left edge for
+ * most of the glide, and the copy sits ENTIRELY over its own picture until the track is ~66%
+ * across. Solving .62s cubic-bezier(.22,.61,.36,1) for 66% puts that at t≈180ms at 1920px
+ * (earlier on narrower screens, where the copy is a bigger share of the frame) — that curve is
+ * steeply front-loaded, half the distance is gone by 124ms. Ending the exit at 200ms means the
+ * copy hits opacity 0 within ~20ms of the moment it stops sitting on the picture it describes:
+ * it leaves while it still belongs. 200 is also above the ~150ms floor where a fade stops
+ * reading as motion and starts reading as a cut, which is the whole point.
+ * Settle: 200 + .04 delay + .55 rise = 790ms, leaving ~3.2s of stillness in the 4s dwell. */
+const HERO_SWAP_MS = 200;
 const PARALLAX = 0.07;
 const DRAG_MIN = 8, GO_DIST = 0.18, GO_VEL = 0.5;
 
@@ -70,7 +85,14 @@ export interface HeroProps {
 export default function Hero({ items, onPlay, onAdd }: HeroProps) {
   const t = useT();
   const slides = useMemo(() => dedupeFeatured(items, HERO_MAX), [items]);
-  const [active, setActive] = useState(0);
+  // {i: which slide's copy is on screen, n: monotonic remount token}. `n` bumps on EVERY
+  // hand-off so <HeroInner key={shown.n}> is GUARANTEED to remount. Keying on the index alone
+  // lets React bail out when the index is unchanged — press ‹ then › inside the 200ms window
+  // and the second hand-off lands on the index we started from, React skips the render, the
+  // outgoing nodes are never replaced, and dropping 'swapping' snaps them from mid-heroFall
+  // back to opacity 1 with no entrance. The token makes the state object always-new, so the
+  // remount (and heroRise) always happens.
+  const [shown, setShown] = useState({ i: 0, n: 0 });
 
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -201,7 +223,43 @@ export default function Hero({ items, onPlay, onAdd }: HeroProps) {
           tt.scrollTo({ left: Math.max(0, d.offsetLeft - tt.clientWidth / 2 + d.clientWidth / 2), behavior: 'smooth' });
         }
       });
-      setActive(L); // React → swap the pinned overlay (restarts heroRise)
+      // NOTE: no setActive() here any more. setActiveSlide is now pure DOM and still runs
+      // entirely at t=0, so .active toggles, heroKen starts in sync with the glide and the edge
+      // clone stays synced. The overlay is handed over by swapOverlay(), called from go().
+    };
+
+    // ---- the copy hand-off ----
+    // The overlay is a SIBLING of the track, so it cannot ride the slide — it has to hand over
+    // in place. That used to happen via setActive(L) at the bottom of setActiveSlide, i.e. at
+    // t=0: React unmounted the outgoing title/plot/meta on the same frame the track began its
+    // 620ms glide, so the new copy sat on the OLD backdrop for ~600ms (measured). The backdrop
+    // dissolved; the copy popped.
+    //
+    // Now the outgoing copy runs heroFall for HERO_SWAP_MS and React swaps the item on the far
+    // side of it. Three consequences worth having:
+    //  - the copy is at opacity 0 before the new one mounts, so there is no crossfade (text
+    //    through text reads as a double exposure) and no content mismatch is ever legible;
+    //  - the React render moves OFF the frame that starts the slide, leaving the glide's
+    //    opening frames to the compositor alone — a small net win over today;
+    //  - re-adding 'swapping' while it is already on is a no-op (the computed animation-name
+    //    doesn't change, so heroFall is NOT restarted). Hammer the arrows and the copy keeps
+    //    fading from where it is instead of snapping back to 1, then settles 200ms after the
+    //    last press.
+    const showCopy = (L: number) => setShown((p) => ({ i: L, n: p.n + 1 }));
+    let swapT = 0;
+    const swapOverlay = (L: number) => {
+      window.clearTimeout(swapT);
+      if (c.rm) { showCopy(L); return; }   // reduced motion: hand over now — no exit, no delay
+      root.classList.add('swapping');
+      swapT = window.setTimeout(() => {
+        // flushSync so the incoming copy is in the DOM BEFORE the class comes off: both
+        // mutations land in one task, so the browser styles the new nodes exactly once —
+        // without 'swapping' — and runs heroRise. Split across tasks (a plain setState
+        // schedules on a MessageChannel) a frame could paint between them and flash the fresh
+        // copy mid-heroFall.
+        flushSync(() => showCopy(L));
+        root.classList.remove('swapping');
+      }, HERO_SWAP_MS);
     };
 
     const animateTo = (cell: number, wrapTo: number | null) => {
@@ -216,9 +274,16 @@ export default function Hero({ items, onPlay, onAdd }: HeroProps) {
     const go = (rawL: number) => {
       if (N < 2) return;
       const realL = ((rawL % N) + N) % N;
+      // Re-selecting the live slide (clicking the already-active thumb) is ALREADY a visual
+      // no-op today: animateTo re-places the track where it already is so no transition fires,
+      // and toggling .active on for a cell that has it restarts neither heroKen nor the
+      // heroDotFill clock. Keep it a no-op — without this guard the copy would fade out and
+      // rise back in over a backdrop that never moved.
+      if (realL === c.i) return;
       const wrap = rawL < 0 || rawL > N - 1;
       setActiveSlide(realL);
       c.i = realL;
+      swapOverlay(realL);
       animateTo(rawL + 1, wrap ? realL : null);
     };
     c.go = go;
@@ -226,6 +291,12 @@ export default function Hero({ items, onPlay, onAdd }: HeroProps) {
     const layout = () => { c.w = root.clientWidth || track.clientWidth || 1; place(c.pos, false); };
     const raf = requestAnimationFrame(layout);
     setActiveSlide(0);
+    // Re-pin the overlay to slide 0 — this was setActiveSlide's job via setActive(L).
+    // Conditional ON PURPOSE: at first mount `shown` is already {i:0,n:0}, so React bails and
+    // slide 0's heroRise runs exactly once. An unconditional bump would remount HeroInner and
+    // re-fire the entrance on first paint, on the LCP path. When `slides` changes under a
+    // non-zero index it does force the reset, exactly like today.
+    setShown((p) => (p.i === 0 ? p : { i: 0, n: p.n + 1 }));
 
     // Hold autoplay until the first real interaction. Each auto-advance rotates a fresh
     // full-viewport backdrop into view, and ensureSlideBg paints it for the first time —
@@ -309,6 +380,8 @@ export default function Hero({ items, onPlay, onAdd }: HeroProps) {
 
     return () => {
       cancelAnimationFrame(raf);
+      window.clearTimeout(swapT);
+      root.classList.remove('swapping');   // never tear down mid-exit and strand the copy at opacity 0
       offEngage();
       root.removeEventListener('animationend', onAnim);
       root.removeEventListener('mouseenter', onEnter);
@@ -325,12 +398,12 @@ export default function Hero({ items, onPlay, onAdd }: HeroProps) {
   }, [slides]);
 
   if (!N) return null;
-  const current = slides[active] || slides[0];
+  const current = slides[shown.i] || slides[0];
 
   return (
-    <div className="hero" id="hero" ref={rootRef} aria-label={t('ui.featured_title')} style={{ '--hero-delay': `${HERO_DELAY_MS / 1000}s` } as CSSProperties}>
+    <div className="hero" id="hero" ref={rootRef} aria-label={t('ui.featured_title')} style={{ '--hero-delay': `${HERO_DELAY_MS / 1000}s`, '--hero-swap': `${HERO_SWAP_MS}ms` } as CSSProperties}>
       {trackEl}
-      {current && <HeroInner key={active} item={current} onPlay={onPlay} onAdd={onAdd} />}
+      {current && <HeroInner key={shown.n} item={current} onPlay={onPlay} onAdd={onAdd} />}
       {thumbsEl}
     </div>
   );

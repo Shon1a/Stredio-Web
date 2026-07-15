@@ -383,6 +383,22 @@
   .hero-inner .hero-plot{animation-delay:.14s}
   .hero-inner .hero-actions{animation:none}
   @keyframes heroRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  /* ...and it leaves the way it came. heroFall keeps the copy drifting UP and accelerates it
+     out; heroRise decelerates it in. The exit mirrors the entrance but is faster and shorter —
+     the entrance is the payload, the exit only has to get out of the way. Net effect is a
+     conveyor: old copy floats up and out, new copy floats up and in, one direction throughout.
+     It runs for --hero-swap while the track is still gliding; JS swaps the item on the far side
+     of it (Hero.tsx: swapOverlay), so the outgoing copy is transparent before the incoming one
+     mounts — no crossfade, because text through text reads as a double exposure.
+     The shorthand deliberately RESETS animation-delay (381-383): the copy ARRIVES as a
+     staggered sequence but LEAVES as one block — the decision is already made on the way out,
+     and staggering an exit only drags the moment out.
+     :not(.hero-actions) keeps PLAY / MY LIST dead still — the same exclusion the rule above
+     makes for the entrance, restated because this rule outspecifies it (0,4,0 vs 0,2,0). It is
+     load-bearing, not decorative. */
+  .hero.swapping .hero-inner > *:not(.hero-actions){
+    animation:heroFall var(--hero-swap,200ms) cubic-bezier(.4,0,1,1) both}
+  @keyframes heroFall{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-10px)}}
   /* display headline (EN + ქართული from one face). It's painted with the shared
      violet->lavender->light sweep (--grad) via background-clip to keep the wordmark
      in the UI's signature pigment. */
@@ -509,6 +525,12 @@
     .hero-bg{transform:scale(1.06)}   /* no drift → keep the gentle static frame, not the zoomed end */
     .hero-media{transform:none!important}   /* no parallax pan */
     .hero-inner > *{animation:none}
+    /* Selector matched EXACTLY so it beats the .hero.swapping rule on ORDER, not weight: the
+       generic `.hero-inner > *` above is only (0,1,0) and would lose to that rule's (0,4,0).
+       JS also skips the class under rm — but c.rm is sampled once at effect setup, so this is
+       what actually holds if the OS setting flips mid-session (the swap then just lands 200ms
+       late: invisible, and zero motion). */
+    .hero.swapping .hero-inner > *:not(.hero-actions){animation:none}
     .hero-thumb.active::after{animation:none;transform:scaleX(1)}
   }
 

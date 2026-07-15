@@ -1,3 +1,4 @@
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -29,7 +30,8 @@ export default defineConfig({
       workbox: {
         // The app shell. Hashed /build/* is safe to precache outright; the unhashed
         // /assets/* names are revisioned by workbox's own content hash.
-        globPatterns: ['**/*.{js,css,html,woff2,svg,ico,webmanifest}', 'assets/rail/*.png'],
+        // The rail's PNGs used to be listed here too; the rail is all inline SVG components now.
+        globPatterns: ['**/*.{js,css,html,woff2,svg,ico,webmanifest}'],
         // Big, rarely-touched, or not needed offline — fetched normally instead.
         globIgnores: ['**/demo.mp4', '**/og-image.jpg', '**/stredio-logo.jpeg', '**/hls.min.js'],
         navigateFallback: '/index.html',
@@ -110,6 +112,12 @@ export default defineConfig({
       },
     }),
   ],
+  resolve: {
+    // Mirrors the "paths" entry in tsconfig.app.json — keep the two in step.
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   build: {
     // Hashed build output lands in /build/*; public/ is copied verbatim to /assets/*.
     // They must stay in separate folders: /build/* filenames carry a content hash and

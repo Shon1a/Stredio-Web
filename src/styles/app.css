@@ -41,7 +41,6 @@
     --font:"Inter","BPG Nino Mtavruli","Noto Sans Georgian",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --font-mono:"Inter","BPG Nino Mtavruli","Noto Sans Georgian",ui-monospace,"SF Mono","Cascadia Code","IBM Plex Mono","Courier New",monospace;
     --track:.01em;
-    --sidebar-w:230px;
     /* left icon rail: always-visible collapsed width + hover-expanded width */
     --rail-w:74px; --rail-w-open:248px; --hero-rail-pull:0px;   /* 0px, NOT unitless 0 — calc(0 + Xpx) is invalid and voids the hero's margin shorthand → black side-borders on mobile */
     /* --rail-fade tracks --page-pad so the full-bleed row's edge fade spans the whole
@@ -66,7 +65,7 @@
 
   /* ---------- focus visibility (keyboard) ---------- */
   a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,
-  [tabindex]:focus-visible,.nav-item:focus-visible,.poster:focus-visible{
+  [tabindex]:focus-visible,.poster:focus-visible{
   outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
   /* keyboard focus ring is always visible */
 
@@ -80,37 +79,8 @@
   /* ---------- shell ---------- */
   .shell{position:relative;z-index:2;display:flex;min-height:100vh}
 
-  /* sidebar = main menu */
-  aside{position:fixed;top:0;left:0;width:var(--sidebar-w);height:100vh;padding:24px 18px;
-    border-right:1px solid var(--border);background:rgba(0, 0, 0, 0.96);z-index:30;
-    display:flex;flex-direction:column;gap:28px;transition:transform .32s cubic-bezier(.2,.8,.2,1)}
-  .brand{font-size:18px;letter-spacing:.18em;font-weight:300}
-  .brand b{font-weight:500;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
-  .brand.display{display:flex;align-items:center}
-  .brand.display img{height:34px;width:auto;display:block;filter:drop-shadow(0 1px 5px rgba(0,0,0,.6))}
-  .brand.display:hover{opacity:.85}
-  .nav-group h4{font-size:15px;letter-spacing:.22em;color:var(--text-muted);margin-bottom:12px}
-  .nav-group{display:flex;flex-direction:column;gap:2px}
-  .nav-item{font-size:17px;padding:9px 12px;border-radius:4px;color:var(--text-muted);
-    transition:.2s;display:flex;gap:10px;align-items:center}
-  .nav-item:hover{color:var(--text);background:rgba(var(--accent-rgb),.05)}
-  .nav-item.active{color:var(--accent);background:rgba(255,255,255,.08)}
-  .nav-item .dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.6}
-  aside .foot{margin-top:auto;font-size:15px;color:var(--text-muted);line-height:1.8}
-
-  /* sidebar overlays the content (drawer) — content always spans the full viewport */
+  /* content always spans the full viewport — the rail floats over it */
   main{margin-left:0;flex:1;min-width:0}
-
-  /* collapsible sidebar */
-  body.nav-closed aside{transform:translateX(-100%)}
-  .nav-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:29;
-    opacity:0;pointer-events:none;transition:opacity .3s}
-  .nav-backdrop.show{opacity:1;pointer-events:auto}
-  /* hamburger hidden; the nav drawer opens via the "\" shortcut and the account icon */
-  .menu-btn{display:none}
-  aside .aside-close{display:none;position:absolute;top:18px;right:16px;background:none;border:none;
-    color:var(--text-muted);font-size:18px;cursor:pointer;transition:.2s}
-  aside .aside-close:hover{color:var(--accent)}
 
   /* ---------- left icon rail ----------
      Always-visible collapsed strip (icons only, --rail-w) that expands to reveal labels on
@@ -161,7 +131,7 @@
        reused, but it's collapsed to a zero-height, invisible, click-through shell. */
     #topbar{height:0;min-height:0;padding:0;background:none;pointer-events:none}
     #topbar.scrolled{background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
-    #topbar .brand-logo,#topbar .topnav,#topbar .menu-btn,
+    #topbar .brand-logo,#topbar .topnav,
     #topbar #searchIcon,#topbar #userIcon,#topbar #chatIcon,
     #topbar .auth-control,.topbar-frame{display:none}
     .hero{--topbar-h:0px !important}          /* no bar to slide under → hero sits flush at the top.
@@ -1300,7 +1270,7 @@
   .set-action-signin{background:var(--accent);color:var(--ink);border-color:transparent}
   .set-action-signin:hover{background:var(--accent-h);border-color:transparent}
   /* visibility gating: sign-in only when signed-out; addons/log-out only when signed-in;
-     admin only for admins (mirrors the aside nav gating) */
+     admin only for admins. Driven by the `authed`/`is-admin` body classes AppShell sets. */
   .set-action[data-act="signin"]{display:none}
   body:not(.authed) .set-action[data-act="signin"]{display:inline-flex}
   body:not(.authed) .set-action[data-act="addons"],
@@ -1609,16 +1579,8 @@
   @keyframes mShimmer{from{background-position:200% 0}to{background-position:-200% 0}}
   #epList.ep-grid .ep-empty{grid-column:1/-1;font-family:var(--font-mono);font-size:13px;color:var(--text-muted);padding:8px 0}
 
-  /* CASTS & CREDITS sidebar.
-     NOTE: this is an <aside>, so it inherits the global nav `aside{}` rule
-     (position:fixed;width:230px;height:100vh;display:flex;background;border-right;z-index:30).
-     Reset every one of those leaked properties so it behaves as a plain panel. */
-  .m-cast{align-self:start;position:sticky;top:0;left:auto;display:block;width:auto;height:auto;
-    min-height:0;padding:0;gap:0;background:none;border:0;z-index:auto;transform:none;transition:none}
-  /* the nav slides out via `body.nav-closed aside{transform:translateX(-100%)}` (specificity
-     0,1,2). #mCast is an <aside>, so that leak shoves it a column-width to the left — kill it
-     here at higher specificity (0,2,1) and when the nav is open too. */
-  body.nav-closed .m-cast,body .m-cast{transform:none;transition:none}
+  /* CASTS & CREDITS sidebar — rides along with the grid column, pinned while it scrolls */
+  .m-cast{align-self:start;position:sticky;top:0}
   .m-cast-director{display:flex;align-items:center;gap:12px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border)}
   .m-cast-director .m-avatar{width:38px;height:38px}
   .m-cast-director .m-cd-name{font-size:14px;color:var(--text)}
@@ -2142,8 +2104,6 @@
   /* ---------- responsive ---------- */
   @media(max-width:860px){
     main{margin-left:0!important}
-    aside{box-shadow:0 0 60px rgba(0,0,0,.7)}
-    aside .aside-close{display:block}
     header{padding:12px 14px;gap:10px}
     .page{--page-pad:14px;--page-top:20px;--rail-fade:36px;padding:var(--page-top) var(--page-pad) 80px}
     .section-title{padding-top:34px}
@@ -2238,18 +2198,6 @@
   .user-dropdown .ud-item svg{width:17px;height:17px;flex-shrink:0;opacity:.72}
   .user-dropdown .ud-logout{color:rgba(229,128,128,.92)}
   .user-dropdown .ud-logout:hover{background:rgba(255,255,255,.18);color:#ff9090}
-
-  /* gated nav (Addons/Settings): when signed out, keep them visible but clearly
-     locked — dimmed with a padlock; clicking opens the sign-in dialog */
-  .nav-item .lock{display:none;margin-left:auto;font-size:16px;line-height:1;opacity:.85}
-  body:not(.authed) .nav-item.gated{color:var(--text-muted);opacity:.55}
-  body:not(.authed) .nav-item.gated:hover{opacity:.9;background:rgba(var(--accent-rgb),.05)}
-  body:not(.authed) .nav-item.gated .dot{opacity:.3}
-  body:not(.authed) .nav-item.gated .lock{display:inline-block}
-  /* admin link: only revealed once we know the signed-in user is an admin */
-  .nav-item.admin-only{display:none}
-  body.is-admin .nav-item.admin-only{display:flex}
-  .nav-item.admin-only .lock{display:inline-block;color:var(--accent)}
 
   /* ---------- auth: full-screen overlay ---------- */
   .auth-overlay{position:fixed;inset:0;z-index:2500;display:none;align-items:center;justify-content:center;
@@ -2406,15 +2354,9 @@
     /* a tap shouldn't leave a stuck focus ring; desktop keyboard focus keeps it,
        and text fields keep it here for accessibility */
     a:focus-visible,button:focus-visible,select:focus-visible,[role=button]:focus-visible,
-    [tabindex]:focus-visible,.nav-item:focus-visible,.poster:focus-visible,.topnav-link:focus-visible{outline:none}
+    [tabindex]:focus-visible,.poster:focus-visible,.topnav-link:focus-visible{outline:none}
     input:focus-visible,textarea:focus-visible{outline:none}
 
-    /* 44px tap targets: drawer rows + close, sign-in, navigable section headers */
-    .nav-item{padding:12px 12px;min-height:44px}
-    .nav-group{gap:4px}
-    aside .aside-close{top:calc(10px + env(safe-area-inset-top,0px));right:10px;width:44px;height:44px;
-      display:flex;align-items:center;justify-content:center;font-size:20px;border-radius:10px}
-    aside .aside-close:active{background:rgba(255,255,255,.08)}
     /* keep a comfortable tap target but don't let the 44px floor make the pill
        TALLER than the ~36px desktop button — that bulk read as oversized on phones */
     #topbar .signin-btn{min-height:36px}
@@ -2462,12 +2404,8 @@
        search input was 15px; auth fields are already 17px and keep their size) */
     input,textarea,select,#searchInput,.search input{font-size:16px}
 
-    /* shell + drawer track the visible viewport and clear the notch / home bar */
+    /* shell tracks the visible viewport and clears the notch / home bar */
     .shell{min-height:100vh;min-height:100dvh}
-    aside{height:100vh;height:100dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;
-      padding-top:calc(24px + env(safe-area-inset-top,0px));
-      padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));
-      padding-left:calc(18px + env(safe-area-inset-left,0px))}
 
     /* topbar clears the Dynamic Island (portrait) and the left notch (landscape) */
     #topbar{padding-top:calc(9px + env(safe-area-inset-top,0px));
@@ -2586,9 +2524,6 @@
      Appended last so these win the cascade over the earlier mobile blocks.
      ========================================================================== */
 
-  /* ---- category nav folds into the slide-out drawer on phones ---- */
-  /* desktop/tablet keep the header strip → the drawer category group is hidden there */
-  .nav-cat-group{display:none}
   .m-readmore{display:inline-flex;align-items:center;gap:6px;background:none;border:0;cursor:pointer;
     padding:0;margin-top:9px;font-family:var(--font-mono);font-size:12.5px;letter-spacing:.12em;
     text-transform:uppercase;color:var(--accent);transition:color .2s}
@@ -2604,15 +2539,8 @@
   .m-hero .m-hero-bg{width:100%;height:100%}
 
   @media (max-width:900px){
-    /* hide the horizontal STREDIO strip — categories now live in the drawer */
+    /* hide the horizontal STREDIO strip — the bottom dock owns navigation here */
     #topbar .topnav{display:none}
-    /* surface the hamburger (display:none everywhere by default) as the drawer opener,
-       pinned to the far left ahead of the wordmark */
-    #topbar .menu-btn{display:flex;order:-2;align-items:center;justify-content:center;
-      width:42px;height:42px;margin:0 2px 0 -2px;padding:0;background:none;border:none;cursor:pointer;
-      color:#fff;font-size:22px;line-height:1;border-radius:10px;flex-shrink:0;
-      -webkit-tap-highlight-color:transparent;transition:background .2s}
-    #topbar .menu-btn:active{background:rgba(255,255,255,.08)}
     /* the header is now a single control row (~56px), not the old two-row strip — re-point
        the homepage hero pull-up so its backdrop still meets the top with no black sliver */
     .hero{--topbar-h:calc(56px + env(safe-area-inset-top,0px))}
@@ -2624,12 +2552,6 @@
     /* the animated placeholder reads oversized at the 16px the input needs to dodge iOS
        focus-zoom — shrink just the placeholder text (the input value itself stays 16px) */
     #searchInput::placeholder{font-size:13.5px}
-    /* reveal the drawer category group; it reuses the existing .nav-item styling */
-    .nav-cat-group{display:flex}
-    /* the BROWSE page list (Catalog/Addons/Settings/Admin) is redundant on phones — "Home"
-       in the WATCH group + the logo reach the catalog, and Settings/Addons live in the
-       account ▾ menu — so drop it; the drawer shows just the category nav */
-    aside .nav-group:not(.nav-cat-group){display:none}
   }
 
   /* ---- detail-modal hero: calmer, readable type on phones ---- */
@@ -2720,10 +2642,10 @@
   /* ==========================================================================
      MOBILE NAV REDESIGN (phones + tablets ≤900px) — floating bottom dock.
      The desktop left icon rail (#railbar) is re-homed to a floating pill at the
-     bottom of the screen; the top bar (#topbar) and the slide-out drawer (<aside>,
-     incl. its .nav-cat-group) are removed. Appended last so it wins the cascade
-     over every earlier mobile block. Desktop (≥901px) is untouched — that layout
-     lives in the min-width:901 block above and never matches these rules.
+     bottom of the screen; the top bar (#topbar) is removed. Appended last so it
+     wins the cascade over every earlier mobile block. Desktop (≥901px) is
+     untouched — that layout lives in the min-width:901 block above and never
+     matches these rules.
      ========================================================================== */
   @media (max-width:900px){
 
@@ -2738,7 +2660,7 @@
       pointer-events:none;overflow:visible;z-index:65}
     #topbar.scrolled{background:none;box-shadow:none;
       -webkit-backdrop-filter:none;backdrop-filter:none}
-    #topbar .brand-logo,#topbar .topnav,#topbar .menu-btn,#topbar #searchIcon,
+    #topbar .brand-logo,#topbar .topnav,#topbar #searchIcon,
     #topbar #userIcon,#topbar #chatIcon,#topbar .auth-control,
     #topbar .signin-btn,.topbar-frame{display:none}
     /* hero sits flush at the very top — no bar to slide under. MUST be 0px (never a
@@ -2748,14 +2670,7 @@
     .hero{--topbar-h:0px}
     #topbar.search-open ~ .page .hero{--topbar-h:0px}
 
-    /* ---- 2 · remove the slide-out drawer + its category group --------------
-       Scope to the NAV drawer ONLY: it is a direct child of .shell. A bare `aside`
-       selector also matches the detail-modal's Casts & Credits panel
-       (<aside class="m-cast" id="mCast">, nested deep in <main>), and `!important`
-       would then hide it in every modal on mobile — so target `.shell>aside`. */
-    .shell>aside,.nav-backdrop{display:none !important}
-
-    /* ---- 3 · search opens as a centred floating command bar ---------------
+    /* ---- 2 · search opens as a centred floating command bar ---------------
        With the top bar gone the old in-flow "second header row" has nowhere to
        sit, so float the bar down from the top of the viewport (the desktop
        command-palette pattern). The combined selector below carries the geometry
@@ -2776,7 +2691,7 @@
       border-color:rgba(255,255,255,.28);transform:translateX(-50%) translateY(0)}
     #topbar .search input{font-size:16px}   /* ≥16px so iOS never zoom-jumps on focus */
 
-    /* ---- 4 · the icon rail becomes a floating bottom dock ----------
+    /* ---- 3 · the icon rail becomes a floating bottom dock ----------
        #railbar keeps ALL its markup + JS wiring; only its box is restyled from a
        tall left strip into a horizontal pill. All desktop rail rules live in the
        min-width:901 block, so nothing leaks here — every property is set fresh. */
@@ -2805,11 +2720,13 @@
     /* black source art rendered white in the dock too (desktop filter lives in the 901px query) */
     .railbar .rail-ic img{width:23px;height:23px;filter:brightness(0) invert(1);opacity:.62}
     .railbar .rail-item.active .rail-ic img,.railbar .rail-item:active .rail-ic img{opacity:1}
-    .rail-myspace .rail-ic img{width:20px;height:20px}
+    /* My Space rides a touch smaller than the dock's other 23px glyphs — the rule has to
+       name svg too now that its icon is a component (see UserRoundIcon), not a PNG. */
+    .rail-myspace .rail-ic svg,.rail-myspace .rail-ic img{width:20px;height:20px}
     .railbar .rail-item:active{background:rgba(255,255,255,.10);color:#fff}
     .railbar .rail-item.active{color:#fff;background:rgba(255,255,255,.15)}
 
-    /* ---- 5 · keep content + the home hero clear of the floating dock ------- */
+    /* ---- 4 · keep content + the home hero clear of the floating dock ------- */
     main{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     /* the hero's dots + play/title CTA live bottom-centre — exactly where the dock
        floats — so lift them above it; nothing gets covered or becomes un-tappable. */
@@ -2822,7 +2739,7 @@
        while removing the strip; pointer-events:none stops it swallowing taps over the art. */
     .hero-thumbs{opacity:0;pointer-events:none}
 
-    /* ---- 6 · transient toasts clear the dock -------------------------------
+    /* ---- 5 · transient toasts clear the dock -------------------------------
        toast() (app.js) pins its pill bottom-centre (bottom:30px) — exactly where
        the dock floats. Lift it above the dock on mobile; the .app-toast class the
        JS sets lets this !important beat the element's inline `bottom`. */

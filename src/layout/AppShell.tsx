@@ -1,19 +1,26 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import type { ReactNode, RefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { ClapIcon, type ClapIconHandle } from '../components/ClapIcon';
+import { FanIcon, type FanIconHandle } from '../components/FanIcon';
+import { HomeIcon, type HomeIconHandle } from '../components/HomeIcon';
+import { LayersIcon, type LayersIconHandle } from '../components/LayersIcon';
+import { LayoutGridIcon, type LayoutGridIconHandle } from '../components/LayoutGridIcon';
+import { SearchIcon, type SearchIconHandle } from '../components/SearchIcon';
+import { UserRoundIcon, type UserRoundIconHandle } from '../components/UserRoundIcon';
 import { useT } from '../i18n/i18n';
 import { useAuth } from '../stores/auth';
 
 const GATED = ['/addons', '/settings', '/library'];
 
 /* Full chrome, faithful to index.html so app.css styles it identically:
- *   .shell > [ railbar · nav-backdrop · aside · main > (topbar · <Outlet/> · footer) ]
- * The left icon rail is the desktop primary nav (expands on hover); the <aside>
- * drawer is the mobile nav (slides in when body loses `nav-closed`); the topbar
- * collapses to height:0 on desktop and shows the brand + hamburger on mobile.
+ *   .shell > [ railbar · main > (topbar · <Outlet/> · footer) ]
+ * The left icon rail is the desktop primary nav (expands on hover); on phones it
+ * re-homes to the floating bottom dock. The topbar collapses to height:0 on both.
  * Nav routes through React Router. The decorative #topbarFrame SVG and the
  * #authControl chip are left as empty hooks (auth lands in Phase 5). */
 
-const RAIL: Array<{ rail: string; to: string; key: string }> = [
+const RAIL = [
   { rail: 'home', to: '/', key: 'nav.home' },
   { rail: 'tv', to: '/tv', key: 'nav.tv' },
   { rail: 'movies', to: '/movies', key: 'nav.movies' },
@@ -21,7 +28,16 @@ const RAIL: Array<{ rail: string; to: string; key: string }> = [
   { rail: 'search', to: '/explore', key: 'nav.search' },
   { rail: 'categories', to: '/categories', key: 'nav.categories' },
   { rail: 'myspace', to: '/library', key: 'myspace.title' },
-];
+] as const satisfies ReadonlyArray<{ rail: string; to: string; key: string }>;
+
+/* Every rail glyph is now a live component; the PNGs and the <img> that read them are gone.
+ * Keying `animated` by this union rather than by string is what keeps that safe: add a row
+ * to RAIL without an icon and this file stops compiling, instead of rendering an empty slot. */
+type RailName = (typeof RAIL)[number]['rail'];
+
+/* The glyphs come from two libraries (lucide-animated and animate-ui) but are ported to one
+ * shape, so the rail drives them all the same way. */
+type RailIconHandle = { startAnimation: () => void; stopAnimation: () => void };
 
 const TOPNAV: Array<{ to: string; key: string }> = [
   { to: '/', key: 'nav.home' },
@@ -35,28 +51,36 @@ export default function AppShell() {
   const t = useT();
   const nav = useNavigate();
   const { pathname, search } = useLocation();
-  const [navOpen, setNavOpen] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
   const user = useAuth((s) => s.user);
   const openAuth = useAuth((s) => s.openAuth);
   const logout = useAuth((s) => s.logout);
+  // These rail glyphs are live components rather than PNGs. Each is rendered once here, not
+  // per-row, so the ref and the element it belongs to stay together. The rail row owns the
+  // hover, so the animation fires anywhere on the 48px item — including the label the rail
+  // reveals on hover — not only over the 22px glyph.
+  const homeRef = useRef<HomeIconHandle>(null);
+  const layersRef = useRef<LayersIconHandle>(null);
+  const clapRef = useRef<ClapIconHandle>(null);
+  const fanRef = useRef<FanIconHandle>(null);
+  const gridRef = useRef<LayoutGridIconHandle>(null);
+  const searchRef = useRef<SearchIconHandle>(null);
+  const userRef = useRef<UserRoundIconHandle>(null);
+  const animated: Record<RailName, { ref: RefObject<RailIconHandle | null>; el: ReactNode }> = {
+    home: { ref: homeRef, el: <HomeIcon ref={homeRef} size={22} /> },
+    tv: { ref: layersRef, el: <LayersIcon ref={layersRef} size={22} /> },
+    movies: { ref: clapRef, el: <ClapIcon ref={clapRef} size={22} /> },
+    anime: { ref: fanRef, el: <FanIcon ref={fanRef} size={22} /> },
+    search: { ref: searchRef, el: <SearchIcon ref={searchRef} size={22} /> },
+    categories: { ref: gridRef, el: <LayoutGridIcon ref={gridRef} size={22} /> },
+    myspace: { ref: userRef, el: <UserRoundIcon ref={userRef} size={22} /> },
+  };
 
   // every route change (and genre-card query change) lands at the top of the page —
   // the window is the scroll container (main has no overflow), so reset it here
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname, search]);
-
-  // The drawer is shown when body loses `nav-closed` (see app.css). This MUST be a layout
-  // effect: app.css styles the <aside> visible by default and only slides it out under
-  // `body.nav-closed`, so applying the class after paint means every load paints a 230px
-  // black panel at z-index:30 and then animates it away over .32s. useLayoutEffect runs
-  // before paint, so the class is present for the first style resolution — and transitions
-  // never fire on initial resolution, so there is no flash and no slide.
-  useLayoutEffect(() => {
-    document.body.classList.toggle('nav-closed', !navOpen);
-  }, [navOpen]);
-  useEffect(() => () => { document.body.classList.remove('nav-closed'); }, []);
 
   // reflect auth state on <body> so app.css shows/hides the sign-in icon + admin links
   useEffect(() => {
@@ -66,9 +90,8 @@ export default function AppShell() {
 
   const go = (to: string) => {
     if (to.startsWith('/admin')) { window.location.href = to; return; }
-    if (GATED.includes(to) && !user) { openAuth(to); setNavOpen(false); return; } // sign-in gate
+    if (GATED.includes(to) && !user) { openAuth(to); return; } // sign-in gate
     nav(to);
-    setNavOpen(false);
   };
   const isActive = (to: string) => (to === '/' ? pathname === '/' : pathname.startsWith(to));
 
@@ -77,55 +100,32 @@ export default function AppShell() {
       {/* LEFT ICON RAIL — desktop primary nav */}
       <nav className="railbar" id="railbar" aria-label="Primary navigation">
         <div className="rail-nav">
-          {RAIL.map((r) => (
-            <a
-              key={r.rail}
-              className={`rail-item${r.rail === 'myspace' ? ' rail-myspace' : ''}${isActive(r.to) ? ' active' : ''}`}
-              role="button" tabIndex={0} data-rail={r.rail}
-              onClick={() => go(r.to)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(r.to); } }}
-            >
-              <span className="rail-ic">
-                <img src={`/assets/rail/${r.rail}${isActive(r.to) ? '-active' : ''}.png`} alt="" aria-hidden="true" draggable={false} />
-              </span>
-              <span className="rail-lbl">{t(r.key)}</span>
-            </a>
-          ))}
+          {RAIL.map((r) => {
+            const anim = animated[r.rail];
+            return (
+              <a
+                key={r.rail}
+                className={`rail-item${r.rail === 'myspace' ? ' rail-myspace' : ''}${isActive(r.to) ? ' active' : ''}`}
+                role="button" tabIndex={0} data-rail={r.rail}
+                // The mobile dock has no hover, so the tap plays it there — and no mouseleave
+                // ever follows to call stopAnimation. Every glyph is chosen to survive that:
+                // each either ends where it started, or (FanIcon) holds a pose its own
+                // rotational symmetry makes indistinguishable from rest. See LayersIcon for
+                // the one that could not, and what it cost.
+                onClick={() => { anim.ref.current?.startAnimation(); go(r.to); }}
+                onMouseEnter={() => anim.ref.current?.startAnimation()}
+                onMouseLeave={() => anim.ref.current?.stopAnimation()}
+                onFocus={() => anim.ref.current?.startAnimation()}
+                onBlur={() => anim.ref.current?.stopAnimation()}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(r.to); } }}
+              >
+                <span className="rail-ic">{anim.el}</span>
+                <span className="rail-lbl">{t(r.key)}</span>
+              </a>
+            );
+          })}
         </div>
       </nav>
-
-      <div className="nav-backdrop" id="navBackdrop" onClick={() => setNavOpen(false)} />
-
-      {/* MOBILE DRAWER */}
-      <aside aria-label="Main navigation">
-        <button className="aside-close" id="asideClose" title="Close menu" aria-label="Close menu" onClick={() => setNavOpen(false)}>✕</button>
-        <span className="brand display" aria-label="stredio" style={{ pointerEvents: 'none' }}>
-          <img src="/assets/stredio-logo.svg" alt="stredio" />
-        </span>
-        <div className="nav-group nav-cat-group">
-          <h4>{t('nav.watch_head')}</h4>
-          {TOPNAV.map((n) => (
-            <a key={n.to} className={`nav-item nav-cat${isActive(n.to) ? ' active' : ''}`} role="button" tabIndex={0} onClick={() => go(n.to)}>
-              <span className="dot" aria-hidden="true" /><span>{t(n.key)}</span>
-            </a>
-          ))}
-        </div>
-        <div className="nav-group">
-          <h4>{t('nav.menu')}</h4>
-          <a className={`nav-item${pathname === '/' ? ' active' : ''}`} role="button" tabIndex={0} onClick={() => go('/')}>
-            <span className="dot" aria-hidden="true" /><span>{t('nav.catalog')}</span>
-          </a>
-          <a className="nav-item gated" role="button" tabIndex={0} onClick={() => go('/addons')}>
-            <span className="dot" aria-hidden="true" /><span>{t('nav.addons')}</span><span className="lock" aria-hidden="true">🔒︎</span>
-          </a>
-          <a className="nav-item gated" role="button" tabIndex={0} onClick={() => go('/settings')}>
-            <span className="dot" aria-hidden="true" /><span>{t('nav.settings')}</span><span className="lock" aria-hidden="true">🔒︎</span>
-          </a>
-          <a className="nav-item admin-only" role="button" tabIndex={0} onClick={() => go('/admin')}>
-            <span className="dot" aria-hidden="true" /><span>{t('nav.admin')}</span><span className="lock" aria-hidden="true" style={{ opacity: 0.7 }}>⚙︎</span>
-          </a>
-        </div>
-      </aside>
 
       <main>
         <header id="topbar">
@@ -140,7 +140,6 @@ export default function AppShell() {
               </a>
             ))}
           </nav>
-          <button className="menu-btn" id="navToggle" title="Toggle menu" aria-label="Toggle navigation menu" onClick={() => setNavOpen((v) => !v)}>☰</button>
           <button className="nav-icon" id="searchIcon" type="button" aria-label="Search" onClick={() => go('/explore')}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
           </button>

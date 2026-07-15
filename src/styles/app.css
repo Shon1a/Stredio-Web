@@ -14,7 +14,14 @@
     /* surfaces — premium monochrome grade: near-black canvas, neutral elevated glass */
     --bg:#000000; --bg-deep:#000000; --bg-2:#000000; --bg-3:#000000; --surface:#000000;
     /* neutral white-alpha glass + hairline (no brand pigment) */
-    --card:rgba(255,255,255,0.045); --border:rgba(255,255,255,0.10);
+    --card:rgba(255,255,255,0.045);
+    /* Borderless: the 10% hairline is off. Transparent rather than deleted, so the ~45
+       `border:1px solid var(--border)` rules stay put and nothing has to be touched — with
+       *{box-sizing:border-box} (line 45) the 1px is absorbed inside each box, so there is no
+       reflow either. Put rgba(255,255,255,0.10) back here and the whole app re-outlines.
+       Nothing else is compensated on purpose: filling the newly-bare controls with surfaces
+       turns outlines into panels, which is a different design, not this one. */
+    --border:rgba(255,255,255,0);
     /* primary white type + a cool neutral gray for muted copy */
     --text:#FFFFFF; --text-muted:#8f8f8f;
     /* neutral grey ramp */

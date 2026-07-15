@@ -74,7 +74,11 @@ const SEED: Record<string, string> = {
   'sec.paramount': 'Paramount+',
   'sec.crunchyroll': 'Crunchyroll',
   'sec.studios': 'Studios',
-  'sec.upcoming_movies': 'Upcoming Movies',
+  // "& Series" is load-bearing: Home renders <UpcomingMarquee movies={…} series={…} />
+  // and /api/home returns upcoming.movie AND upcoming.series, so the rail is both.
+  // en-base and ka.json ("მომავალი ფილმები და სერიალები") both say movies and series;
+  // this override kept the title-case refinement but dropped half the heading.
+  'sec.upcoming_movies': 'Upcoming Movies & Series',
 
   // hero actions
   'hero.play': 'MORE',
@@ -186,7 +190,12 @@ const SEED: Record<string, string> = {
   // settings
   'settings.title': 'Settings',
   'settings.interface': 'Interface',
-  'settings.language': 'Language',
+  // AUDIO language, not the UI's. It labels the select bound to settings.audioLang
+  // (English / Original) in the Playback card, and Settings already has a separate
+  // 'settings.website_language' control — a bare "Language" leaves the reader to guess
+  // which is which. en-base and ka.json ("აუდიო ენა") both say audio; this override
+  // was the odd one out.
+  'settings.language': 'Audio language',
   'settings.playback': 'Playback',
   'settings.autoplay_next': 'Auto-play next episode',
   'settings.subtitles': 'Subtitles',

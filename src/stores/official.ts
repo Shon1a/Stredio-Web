@@ -30,7 +30,12 @@ export interface OfficialAddon {
  * display metadata comes from the CDN; these stand in if it's unreachable. */
 const INLINE: OfficialAddon[] = [
   { id: 'catalog', section: 'official', name: 'Catalog Rows', ver: 'v1.0.0', tags: ['catalog'], defaultInstalled: true, flags: { official: true, protected: true } },
-  { id: 'providers', section: 'official', name: 'Streaming Services', ver: 'v1.0.0', tags: ['providers'], defaultInstalled: true, flags: { official: true, protected: true } },
+  // defaultInstalled:false mirrors the published manifest (Stredio-official-addons/addons.json),
+  // which this list stands in for when the CDN is unreachable — it said false while this said
+  // true. Note it is inert either way: isOn() in Addons.tsx reads config[id] for PROTECTED
+  // add-ons, so the value that actually decides is DEFAULTS.providers in stores/homeConfig.ts.
+  // Kept honest anyway, because un-protecting this id later would suddenly make it live.
+  { id: 'providers', section: 'official', name: 'Streaming Services', ver: 'v1.0.0', tags: ['providers'], defaultInstalled: false, flags: { official: true, protected: true } },
   { id: 'studios', section: 'official', name: 'Studios', ver: 'v1.0.0', tags: ['studios'], defaultInstalled: true, noConfig: true, preview: true, flags: { official: true, protected: true } },
   { id: 'upcoming', section: 'official', name: 'Upcoming Radar', ver: 'v1.0.0', tags: ['upcoming'], defaultInstalled: true, noConfig: true, preview: true, flags: { official: true, protected: true } },
 ];

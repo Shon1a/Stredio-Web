@@ -17,7 +17,15 @@ export interface HomeConfig {
   providerRows: Record<string, boolean>;  // per-row on/off within Streaming Services
 }
 
-const DEFAULTS: HomeConfig = { catalog: true, providers: true, studios: true, upcoming: true, catalogRows: {}, providerRows: {} };
+/* `providers` is off by default: the official add-on manifest has always declared
+ * "providers": { defaultInstalled: false } — the app just never honoured it, because
+ * isOn() in Addons.tsx reads config[id] for PROTECTED add-ons and never looks at
+ * defaultInstalled. This is the value it actually reads, so this is where the manifest's
+ * intent has to live. Off means Home hides all seven prov_* rows (PROVIDER_CATS) until the
+ * visitor installs Streaming Services from the Add-ons page.
+ * Only affects visitors with no saved config: load() spreads DEFAULTS *under* whatever is in
+ * localStorage, so anyone who has already toggled anything keeps their own choice. */
+const DEFAULTS: HomeConfig = { catalog: true, providers: false, studios: true, upcoming: true, catalogRows: {}, providerRows: {} };
 
 function load(): HomeConfig {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { ...DEFAULTS }; }

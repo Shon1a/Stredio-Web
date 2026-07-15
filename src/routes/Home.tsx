@@ -40,7 +40,19 @@ export default function Home() {
     [data?.hero?.results],
   );
 
-  if (isLoading) return <section className="page active" id="browse"><p style={{ padding: 24, color: '#888' }}>{t('common.loading')}</p></section>;
+  // Same gooey metaball the drill-down / Explore grids use (CatalogGrid), so arriving on Home
+  // and arriving on TV/Movies look like the same app. .grid-loader centres it in a 52vh box;
+  // no gridColumn here — CatalogGrid needs 1/-1 because it renders INSIDE the .grid, this
+  // section is not a grid container.
+  if (isLoading) {
+    return (
+      <section className="page active" id="browse">
+        <div className="grid-loader">
+          <span className="cat-loader" role="status" aria-label={t('grid.loading')} />
+        </div>
+      </section>
+    );
+  }
   if (isError) {
     return (
       <section className="page active" id="browse">

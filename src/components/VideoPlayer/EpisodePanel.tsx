@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSeason } from '../../lib/queries';
 import { useT } from '../../i18n/i18n';
 import type { Episode } from '../../lib/types';
@@ -26,7 +26,16 @@ function EpRow({ ep, active, onPick }: { ep: Episode; active: boolean; onPick: (
 
 export default function EpisodePanel({ open, series, onClose }: { open: boolean; series: PlaySeries; onClose: () => void }) {
   const t = useT();
+  // Which season's episode list the panel is showing. Defaults to the one playing, but the
+  // user can tab to another without changing playback, so it's state rather than the prop.
   const [panelSeason, setPanelSeason] = useState(series.season);
+  // Re-sync when playback moves to a different season on its own. useState reads its
+  // argument only on the first render, and auto-next swaps `series` in place without ever
+  // unmounting this panel — so after S1E10 -> S2E1 panelSeason stayed at 1, leaving the
+  // wrong season tab lit and `series.season === panelSeason` false for every row, i.e. no
+  // episode highlighted at all. A manual tab choice is preserved: this only fires when the
+  // PLAYING season actually changes.
+  useEffect(() => { setPanelSeason(series.season); }, [series.season]);
   const { data, isLoading } = useSeason(series.metaId, panelSeason);
   const episodes: Episode[] = data?.episodes ?? [];
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useT } from '../i18n/i18n';
 import { useAuth } from '../stores/auth';
@@ -47,8 +47,13 @@ export default function AppShell() {
     window.scrollTo(0, 0);
   }, [pathname, search]);
 
-  // the drawer is shown when body loses `nav-closed` (see app.css)
-  useEffect(() => {
+  // The drawer is shown when body loses `nav-closed` (see app.css). This MUST be a layout
+  // effect: app.css styles the <aside> visible by default and only slides it out under
+  // `body.nav-closed`, so applying the class after paint means every load paints a 230px
+  // black panel at z-index:30 and then animates it away over .32s. useLayoutEffect runs
+  // before paint, so the class is present for the first style resolution — and transitions
+  // never fire on initial resolution, so there is no flash and no slide.
+  useLayoutEffect(() => {
     document.body.classList.toggle('nav-closed', !navOpen);
   }, [navOpen]);
   useEffect(() => () => { document.body.classList.remove('nav-closed'); }, []);

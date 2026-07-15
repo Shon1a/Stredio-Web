@@ -116,7 +116,11 @@ const SEED: Record<string, string> = {
   'modal.tab_addons': 'Addon Sources',
   'modal.watch_on': 'Watch on {name}',
   'modal.no_providers': 'No streaming services listed for this title.',
-  'modal.season_one': 'Season 1',
+  // A COUNT, not an ordinal — DetailModal renders it as "1 Season · 10 Episodes" when
+  // meta.seasons === 1, pairing with 'modal.seasons_count' ("{n} Seasons"). Do not
+  // "align" it with 'modal.season' below: that one IS an ordinal, for the season tabs.
+  // ka.json has this right ("1 სეზონი" = 1 season), so English was the odd one out.
+  'modal.season_one': '1 Season',
   'modal.season': 'Season {n}',
   'modal.seasons_count': '{n} Seasons',
   'modal.episodes_count': '{n} Episodes',

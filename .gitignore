@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# vite-plugin-pwa emits this the moment devOptions.enabled is turned on
+dev-dist
+
 # Playwright MCP tool output (console/page snapshots)
 .playwright-mcp/
 

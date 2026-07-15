@@ -1,11 +1,15 @@
 
-  /* BPG Nino Mtavruli — the ქართული (Georgian) UI face, self-hosted. Elms Sans (Latin-only,
-     from Google) leads every font stack, so Latin glyphs render in Elms Sans and Georgian
-     glyphs — which Elms Sans lacks — fall through to BPG Nino Mtavruli. The family ships a
-     single weight, so no font-weight constraint maps every CSS weight to this one file (700
-     is faux-bolded). */
+  /* BPG Nino Mtavruli — the ქართული (Georgian) UI face, self-hosted. Inter leads --font, so
+     Latin renders in Inter and Georgian — which Inter lacks — falls through to here. Latin
+     therefore never reaches this face, so the shipped file is subset to the Georgian blocks
+     only: 40 of the original 198 glyphs, woff2 instead of ttf, 27.3 kB → 6.5 kB. Re-subset
+     with fontTools if the family ever needs to cover Latin. unicode-range matches what
+     actually survived the subset — without it the browser would still consider this face for
+     Latin and fetch it on pages with no Georgian at all. The family ships a single weight, so
+     no font-weight constraint maps every CSS weight to this one file (700 is faux-bolded). */
   @font-face{font-family:"BPG Nino Mtavruli";font-style:normal;font-display:swap;
-    src:url("/assets/fonts/bpg-nino-mtavruli.ttf") format("truetype");}
+    src:url("/assets/fonts/bpg-nino-mtavruli.woff2") format("woff2");
+    unicode-range:U+10A0-10FF,U+1C90-1CBF,U+2D00-2D2F;}
   :root{
     /* surfaces — premium monochrome grade: near-black canvas, neutral elevated glass */
     --bg:#000000; --bg-deep:#000000; --bg-2:#000000; --bg-3:#000000; --surface:#000000;

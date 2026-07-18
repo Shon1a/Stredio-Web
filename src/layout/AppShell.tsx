@@ -1,3 +1,4 @@
+import { motion, useReducedMotion } from 'motion/react';
 import type { ReactNode, RefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -47,6 +48,14 @@ const TOPNAV: Array<{ to: string; key: string }> = [
   { to: '/library', key: 'nav.my_list' },
 ];
 
+/* The active-item highlight is ONE element (layoutId 'railPill') that lives inside whichever
+ * rail item is active. When the route changes it unmounts from the old item and mounts in the
+ * new one, so motion springs the same box across the gap — Instagram's sliding-dock feel. The
+ * source and target boxes are the same size, so it's pure translation (no scale = crisp radius,
+ * no border distortion mid-travel). A snappy spring with a hair of overshoot reads as premium
+ * without feeling loose. Reduced-motion collapses it to an instant cut (see the guard below). */
+const PILL_SPRING = { type: 'spring', stiffness: 460, damping: 34, mass: 0.9 } as const;
+
 export default function AppShell() {
   const t = useT();
   const nav = useNavigate();
@@ -55,6 +64,7 @@ export default function AppShell() {
   const user = useAuth((s) => s.user);
   const openAuth = useAuth((s) => s.openAuth);
   const logout = useAuth((s) => s.logout);
+  const reduceMotion = useReducedMotion();
   // These rail glyphs are live components rather than PNGs. Each is rendered once here, not
   // per-row, so the ref and the element it belongs to stay together. The rail row owns the
   // hover, so the animation fires anywhere on the 48px item — including the label the rail
@@ -66,6 +76,7 @@ export default function AppShell() {
   const gridRef = useRef<LayoutGridIconHandle>(null);
   const searchRef = useRef<SearchIconHandle>(null);
   const userRef = useRef<UserRoundIconHandle>(null);
+  const railbarRef = useRef<HTMLElement>(null);
   const animated: Record<RailName, { ref: RefObject<RailIconHandle | null>; el: ReactNode }> = {
     home: { ref: homeRef, el: <HomeIcon ref={homeRef} size={22} /> },
     tv: { ref: layersRef, el: <LayersIcon ref={layersRef} size={22} /> },
@@ -81,6 +92,34 @@ export default function AppShell() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname, search]);
+
+  // Instagram's scroll-reactive dock: scrolling DOWN zooms the floating mobile bar out (scales
+  // it down + tucks it toward the bottom edge) and it HOLDS there; scrolling UP zooms it back to
+  // its default size. It's directional, not idle-timed — the state only flips when the scroll
+  // reverses. The window is the scroll container (main has no overflow), so we listen there and
+  // toggle a data-attr straight on the node rather than setState — a fast scroll must never
+  // re-render the whole shell. lastY only advances past a 6px move, so slow drags accumulate to a
+  // real direction instead of chattering on jitter/rubber-band. Reduced-motion opts out; CSS
+  // scopes the effect to the ≤900px dock, so on the desktop rail the attribute is inert.
+  useEffect(() => {
+    const el = railbarRef.current;
+    if (!el || reduceMotion) return;
+    let lastY = window.scrollY;
+    let compact = false;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const dy = y - lastY;
+      if (Math.abs(dy) < 6) return;
+      lastY = y;
+      if (dy > 0 && y > 8) {
+        if (!compact) { compact = true; el.dataset.scrolling = 'true'; }
+      } else if (dy < 0) {
+        if (compact) { compact = false; delete el.dataset.scrolling; }
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [reduceMotion]);
 
   // reflect auth state on <body> so app.css shows/hides the sign-in icon + admin links
   useEffect(() => {
@@ -98,7 +137,7 @@ export default function AppShell() {
   return (
     <div className="shell">
       {/* LEFT ICON RAIL — desktop primary nav */}
-      <nav className="railbar" id="railbar" aria-label="Primary navigation">
+      <nav className="railbar" id="railbar" aria-label="Primary navigation" ref={railbarRef}>
         <div className="rail-nav">
           {RAIL.map((r) => {
             const anim = animated[r.rail];
@@ -119,6 +158,13 @@ export default function AppShell() {
                 onBlur={() => anim.ref.current?.stopAnimation()}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(r.to); } }}
               >
+                {isActive(r.to) && (
+                  <motion.span
+                    className="rail-pill" aria-hidden="true"
+                    layoutId="railPill" initial={false}
+                    transition={reduceMotion ? { duration: 0 } : PILL_SPRING}
+                  />
+                )}
                 <span className="rail-ic">{anim.el}</span>
                 <span className="rail-lbl">{t(r.key)}</span>
               </a>

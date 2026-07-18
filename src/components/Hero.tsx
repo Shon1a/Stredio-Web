@@ -53,16 +53,22 @@ function HeroInner({ item, onPlay, onAdd }: { item: MediaItem; onPlay?: (m: Medi
 
   return (
     <div className="hero-inner">
-      <h2 className={`hero-title${showLogo ? ' has-logo' : ''}`}>
-        {showLogo
-          ? <img className="hero-logo" src={item.titleLogo} alt={item.title} onError={() => setLogoFail(true)} />
-          : item.title}
-      </h2>
-      <p className="hero-plot">{plot}</p>
-      <div className="hero-meta">
-        <span>{item.year}</span>
-        <span>{item.rating ? `★ ${item.rating}` : ''}</span>
-        <span>{genre(item.genre || '')}</span>
+      <div className="hero-copy">
+        <h2 className={`hero-title${showLogo ? ' has-logo' : ''}`}>
+          {showLogo
+            ? <img className="hero-logo" src={item.titleLogo} alt={item.title} onError={() => setLogoFail(true)} />
+            : item.title}
+        </h2>
+        <div className="hero-desc">
+          <div className="hero-desc-in">
+            <p className="hero-plot">{plot}</p>
+            <div className="hero-meta">
+              <span>{item.year}</span>
+              <span>{item.rating ? `★ ${item.rating}` : ''}</span>
+              <span>{genre(item.genre || '')}</span>
+            </div>
+          </div>
+        </div>
       </div>
       <div className="hero-actions">
         <button className="hero-btn hero-play" type="button" onClick={() => onPlay?.(item)}>

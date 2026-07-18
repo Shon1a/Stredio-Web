@@ -94,7 +94,11 @@
     /* expanded state stays see-through — a soft left-weighted wash keeps the icons
        and labels legible while the content behind bleeds through toward the right edge.
        NO backdrop-blur (the content behind must stay crisp, per reference). */
-    .railbar:hover,.railbar:focus-within{width:var(--rail-w-open);
+    /* Expand on hover, or when a child holds KEYBOARD focus (:focus-visible). Using
+       :has(:focus-visible) instead of :focus-within is deliberate: a mouse click leaves :focus on
+       the item but NOT :focus-visible, so the rail no longer stays stuck-open after you click a
+       nav item and move the mouse away — while Tab-navigation still expands and holds it. */
+    .railbar:hover,.railbar:has(:focus-visible){width:var(--rail-w-open);
       background:linear-gradient(90deg,rgba(0, 0, 0, 0.589) 0%,rgba(0, 0, 0, 0.301) 70%,rgba(0, 0, 0, 0) 90%,transparent 100%);
       border-right:none;box-shadow:none}
     /* no top-of-rail brand mark — the rail is icons only (see reference); the nav icons
@@ -104,18 +108,23 @@
       cursor:pointer;white-space:nowrap;position:relative;transition:color .18s ease}
     .rail-item:hover{color:#fff}
     .rail-item.active{color:#fff}
-    /* active accent bar on the left edge (the active item shows bright) */
-    .rail-item.active::before{content:"";position:absolute;left:0;top:11px;bottom:11px;width:3px;
-      border-radius:0 3px 3px 0;background:#fff}
-    .rail-ic{flex:0 0 30px;width:30px;display:grid;place-items:center}
+    /* active highlight: one sliding pill (the 'railPill' layoutId in AppShell). It sits behind
+       the icon ONLY, with a fixed box that's identical on every row, so the rail expanding on
+       hover never stretches it and motion just springs it up/down the column. Replaces the old
+       3px left accent bar. */
+    .rail-pill{position:absolute;left:14px;top:4px;width:46px;height:40px;z-index:0;
+      border-radius:13px;background:rgba(255,255,255,.12)}
+    .rail-ic{flex:0 0 30px;width:30px;display:grid;place-items:center;position:relative;z-index:1;
+      transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
+    .rail-item:active .rail-ic{transform:scale(.86)}
     .rail-ic svg{width:22px;height:22px;display:block}
     /* PNG rail glyphs: black source art rendered white; muted until hover/active */
     .rail-ic img{width:22px;height:22px;display:block;object-fit:contain;
       filter:brightness(0) invert(1);opacity:.62;transition:opacity .18s ease}
     .rail-item:hover .rail-ic img,.rail-item.active .rail-ic img{opacity:1}
     .rail-lbl{font-size:15px;font-weight:600;letter-spacing:.01em;opacity:0;transform:translateX(-6px);
-      transition:opacity .2s ease,transform .2s ease}
-    .railbar:hover .rail-lbl,.railbar:focus-within .rail-lbl{opacity:1;transform:none}
+      position:relative;z-index:1;transition:opacity .2s ease,transform .2s ease}
+    .railbar:hover .rail-lbl,.railbar:has(:focus-visible) .rail-lbl{opacity:1;transform:none}
     /* My Space renders its glyph in a subtle disc, like an avatar chip */
     .rail-myspace .rail-ic{background:rgba(255,255,255,.10);border-radius:50%;width:32px;height:32px;flex-basis:32px}
     .rail-myspace .rail-ic svg{width:18px;height:18px}
@@ -353,11 +362,12 @@
      on each slide change; z-index lifts it above the track. */
   .hero-inner{position:relative;z-index:2;max-width:660px;padding:0 var(--page-pad) clamp(30px,5vh,58px) calc(var(--hero-rail-pull) + var(--page-pad))}
   /* the text cross-fades + rises in on every slide swap (new nodes auto-run this). The action
-     BUTTONS are deliberately excluded so PLAY / MY LIST never flicker — they hold dead still. */
-  .hero-inner > *{animation:heroRise .55s cubic-bezier(.2,.7,.2,1) both}
-  .hero-inner .hero-title{animation-delay:.04s}
-  .hero-inner .hero-meta{animation-delay:.10s}
-  .hero-inner .hero-plot{animation-delay:.14s}
+     BUTTONS are deliberately excluded so PLAY / MY LIST never flicker — they hold dead still.
+     .hero-copy (title + hover-revealed synopsis) is the swap unit; the synopsis inside it is
+     collapsed at rest so on a swap only the title is visibly animated. .hero-desc is excluded
+     from this rule so heroRise's `both` fill can't pin it open and defeat the collapse. */
+  .hero-inner > *:not(.hero-desc){animation:heroRise .55s cubic-bezier(.2,.7,.2,1) both}
+  .hero-inner > .hero-copy{animation-delay:.04s}
   .hero-inner .hero-actions{animation:none}
   @keyframes heroRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   /* ...and it leaves the way it came. heroFall keeps the copy drifting UP and accelerates it
@@ -373,7 +383,7 @@
      :not(.hero-actions) keeps PLAY / MY LIST dead still — the same exclusion the rule above
      makes for the entrance, restated because this rule outspecifies it (0,4,0 vs 0,2,0). It is
      load-bearing, not decorative. */
-  .hero.swapping .hero-inner > *:not(.hero-actions){
+  .hero.swapping .hero-inner > *:not(.hero-actions):not(.hero-desc){
     animation:heroFall var(--hero-swap,200ms) cubic-bezier(.4,0,1,1) both}
   @keyframes heroFall{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-10px)}}
   /* display headline (EN + ქართული from one face). It's painted with the shared
@@ -406,6 +416,34 @@
   .hero-plot{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
     font-size:15.5px;line-height:1.6;color:var(--text-muted);margin:0 0 14px;max-width:600px;
     text-shadow:0 1px 16px rgba(0,0,0,.6)}
+  /* --- hover-revealed synopsis ------------------------------------------------
+     The plot + meta live in .hero-desc (grid) wrapping .hero-desc-in (the clip). On a
+     POINTER device the block is COLLAPSED to zero height by default and expands only
+     while the TITLE / copy column is hovered — NOT the whole banner. Because .hero is
+     display:flex / align-items:flex-end, .hero-inner is pinned to the hero's bottom edge,
+     so as this block collapses the overlay gets shorter and the TITLE rides DOWN toward
+     the buttons; on hover it expands, the title rides back UP, and the copy fades in
+     beneath it. That title travel is the whole effect (matches the reference clip).
+
+     The trigger is .hero-copy:hover, and .hero-copy WRAPS both the title and .hero-desc
+     on purpose: the title slides up out from under the cursor as the block opens, so if
+     the trigger were the title alone it would drop the hover and flicker open/closed. The
+     wrapper keeps the cursor inside the hover zone the whole way up. Keyboard users get
+     the broader .hero:focus-within so tabbing to PLAY / MY LIST also reveals the copy.
+     Mechanism: grid-template-rows 0fr↔1fr is the one height reveal you can actually
+     transition (`height:auto` can't) + an opacity fade on the clipped inner.
+     PLAY / MY LIST are the last child, so they hold dead still at the bottom throughout.
+     Touch devices report no hover, so the guard never fires and the copy stays open. */
+  .hero-desc{display:grid;grid-template-rows:1fr}
+  .hero-desc-in{min-height:0;overflow:hidden}
+  @media (hover:hover) and (pointer:fine){
+    .hero-desc{grid-template-rows:0fr;transition:grid-template-rows .5s cubic-bezier(.2,.7,.2,1)}
+    .hero-desc-in{opacity:0;transition:opacity .38s ease}
+    .hero-copy:hover .hero-desc,
+    .hero:focus-within .hero-desc{grid-template-rows:1fr}
+    .hero-copy:hover .hero-desc-in,
+    .hero:focus-within .hero-desc-in{opacity:1}
+  }
   .hero-actions{display:flex;align-items:center;gap:12px}
   .hero-btn{display:inline-flex;align-items:center;gap:9px;border:none;cursor:pointer;
     font-family:inherit;font-size:16px;letter-spacing:.02em;border-radius:6px;padding:12px 28px;
@@ -503,11 +541,14 @@
     .hero-media{transform:none!important}   /* no parallax pan */
     .hero-inner > *{animation:none}
     /* Selector matched EXACTLY so it beats the .hero.swapping rule on ORDER, not weight: the
-       generic `.hero-inner > *` above is only (0,1,0) and would lose to that rule's (0,4,0).
+       generic `.hero-inner > *` above is only (0,1,0) and would lose to that rule's (0,5,0).
        JS also skips the class under rm — but c.rm is sampled once at effect setup, so this is
        what actually holds if the OS setting flips mid-session (the swap then just lands 200ms
        late: invisible, and zero motion). */
-    .hero.swapping .hero-inner > *:not(.hero-actions){animation:none}
+    .hero.swapping .hero-inner > *:not(.hero-actions):not(.hero-desc){animation:none}
+    /* reduced motion: no collapse/rise — hold the synopsis open so the title never travels */
+    .hero-desc{grid-template-rows:1fr;transition:none}
+    .hero-desc-in{opacity:1;transition:none}
     .hero-thumb.active::after{animation:none;transform:scaleX(1)}
   }
 
@@ -1152,12 +1193,29 @@
   .addon-grid{display:flex;flex-direction:column;gap:12px}
 
   .addon{display:flex;gap:15px;align-items:center;background:var(--surface);border:1px solid var(--border);
-    border-radius:8px;padding:15px 18px;position:relative;overflow:hidden;transition:border-color .2s,background .2s}
-  .addon:hover{border-color:rgba(var(--accent-rgb),.34);background:#242424}
+    border-radius:8px;padding:15px 18px;position:relative;overflow:hidden;transition:border-color .2s,background .2s,transform .3s cubic-bezier(.4,0,.2,1),box-shadow .3s ease}
+  .addon:hover{border-color:rgba(var(--accent-rgb),.34);background:#fff;transform:scale(1.03);box-shadow:0 12px 30px rgba(0,0,0,.55)}
   .addon.installed::after{content:"";position:absolute;inset:0;pointer-events:none;
     background:linear-gradient(90deg,transparent,rgba(255,255,255,.10),transparent);
     transform:translateX(-100%);animation:shimmer 2.4s ease-in-out}
   @keyframes shimmer{to{transform:translateX(100%)}}
+  /* Hover = the card turns white (a simple colour fade, no fill animation — background
+     transitions via the .addon rule above) with its content inverted to dark so it stays
+     readable. The card also gets a small zoom + lift (see .addon:hover above). */
+  .addon .name,.addon .ver,.addon .desc{transition:color .2s ease}
+  .addon:hover .name,.addon:hover .ver{color:var(--ink)}
+  .addon:hover .desc,.addon:hover .desc .mono{color:#2b2b2b}
+  .addon:hover .ic.puzzle .pzPieceIc rect[data-fill]{fill:var(--ink)}
+  .addon:hover .tag{background:rgba(0,0,0,.08);color:#333}
+  .addon:hover .badge.muted{background:rgba(0,0,0,.07);color:#444}
+  .addon:hover .minibtn{color:#222;border-color:rgba(0,0,0,.28)}
+  .addon:hover .minibtn.install{color:var(--ink);border-color:rgba(0,0,0,.4)}
+  .addon:hover .minibtn.is-default{color:#555;border-color:rgba(0,0,0,.25)}
+  .addon:hover .minibtn:hover{color:var(--ink);border-color:rgba(0,0,0,.55);background:rgba(0,0,0,.06)}
+  .addon:hover .minibtn.danger,.addon:hover .minibtn.danger:hover{color:var(--danger)}
+  @media(prefers-reduced-motion:reduce){
+    .addon:hover{transform:none}
+  }
   .addon .ic{width:40px;height:40px;border-radius:9px;background:rgba(255,255,255,.1);display:grid;place-items:center;
     color:var(--accent);font-size:19px;flex-shrink:0;overflow:hidden}
   .addon .ic img{width:100%;height:100%;object-fit:cover;display:block;background:#0d0d0d}
@@ -2782,17 +2840,35 @@
       -webkit-backdrop-filter:blur(22px) saturate(1.3);backdrop-filter:blur(22px) saturate(1.3);
       border:1px solid rgba(255,255,255,.09);border-radius:34px;
       box-shadow:0 16px 44px rgba(0,0,0,.5),0 2px 10px rgba(0,0,0,.42);
-      z-index:45}
+      z-index:45;transform-origin:50% 100%;
+      transition:transform .42s cubic-bezier(.34,1.4,.5,1),box-shadow .3s ease}
+    /* scroll-reactive dock (see AppShell's scroll listener): scrolling DOWN zooms the bar out —
+       scales it down and tucks it toward the bottom edge — and it HOLDS there until you scroll UP,
+       which zooms it back to its default size. No opacity change: it stays fully solid, just
+       smaller. The centring translateX(-50%) MUST stay in the compact transform or the bar slides
+       left of centre. The spring easing gives the return a gentle overshoot: the "zoom in" pop. */
+    .railbar[data-scrolling]{transform:translateX(-50%) translateY(10px) scale(.86);
+      box-shadow:0 10px 26px rgba(0,0,0,.4)}
+    @media (prefers-reduced-motion:reduce){
+      .railbar{transition:none}
+      .railbar[data-scrolling]{transform:translateX(-50%)}
+    }
     .railbar .rail-lbl{display:none}   /* icons only in the dock */
     .railbar .rail-nav{display:flex;flex-direction:row;align-items:center;
       justify-content:center;gap:2px;flex:0 1 auto;min-height:0}
     /* the dock's clean 7 icons: Home · Search · TV · Anime · Movies · Categories · My Space. */
     .railbar .rail-item{display:flex;align-items:center;justify-content:center;
-      width:44px;height:44px;flex:0 0 auto;border-radius:50%;position:relative;
+      width:44px;height:44px;flex:0 0 auto;border-radius:14px;position:relative;
       color:var(--text-muted);cursor:pointer;
       transition:color .18s ease,background .18s ease;
       -webkit-tap-highlight-color:transparent}
-    .railbar .rail-ic{flex:none;width:auto;display:grid;place-items:center}
+    /* active highlight: the same sliding 'railPill' (see AppShell) — it fills the 44px cell as a
+       squircle and motion springs it sideways along the dock as tabs change, Instagram-style. */
+    .railbar .rail-pill{position:absolute;inset:0;z-index:0;border-radius:14px;
+      background:rgba(255,255,255,.16)}
+    .railbar .rail-ic{flex:none;width:auto;display:grid;place-items:center;position:relative;z-index:1;
+      transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
+    .railbar .rail-item:active .rail-ic{transform:scale(.82)}
     .railbar .rail-ic svg{width:23px;height:23px;display:block;stroke-width:1.8}
     /* black source art rendered white in the dock too (desktop filter lives in the 901px query) */
     .railbar .rail-ic img{width:23px;height:23px;filter:brightness(0) invert(1);opacity:.62}
@@ -2800,8 +2876,9 @@
     /* My Space rides a touch smaller than the dock's other 23px glyphs — the rule has to
        name svg too now that its icon is a component (see UserRoundIcon), not a PNG. */
     .rail-myspace .rail-ic svg,.rail-myspace .rail-ic img{width:20px;height:20px}
-    .railbar .rail-item:active{background:rgba(255,255,255,.10);color:#fff}
-    .railbar .rail-item.active{color:#fff;background:rgba(255,255,255,.15)}
+    /* press feedback on a non-active tap; the active tab's fill is the pill above, not a bg */
+    .railbar .rail-item:active{background:rgba(255,255,255,.08);color:#fff}
+    .railbar .rail-item.active{color:#fff}
 
     /* ---- 4 · keep content + the home hero clear of the floating dock ------- */
     main{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}

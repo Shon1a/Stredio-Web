@@ -65,6 +65,22 @@ export default function AppShell() {
   const openAuth = useAuth((s) => s.openAuth);
   const logout = useAuth((s) => s.logout);
   const reduceMotion = useReducedMotion();
+  // The active-item highlight is a shared-layout element (layoutId 'railPill'). On a hard reload
+  // Motion takes its FIRST layout snapshot before app.css has positioned the pill — and, under
+  // StrictMode, across a mount→unmount→remount churn — so that first "previous" box lands at a
+  // bogus spot: full-bleed and low on the page. The next frame then springs that phantom box up
+  // into the 40px rail slot, which reads as a big translucent-white pill sweeping in from the very
+  // bottom. Withholding the pill until one frame AFTER first paint kills it: by then layout has
+  // settled and there's no stale predecessor, so `initial={false}` lets it simply appear in place.
+  // The flag stays true for the rest of the session, so genuine route-change slides still spring.
+  const [pillReady, setPillReady] = useState(false);
+  useEffect(() => {
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setPillReady(true));
+    });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+  }, []);
   // These rail glyphs are live components rather than PNGs. Each is rendered once here, not
   // per-row, so the ref and the element it belongs to stay together. The rail row owns the
   // hover, so the animation fires anywhere on the 48px item — including the label the rail
@@ -158,10 +174,16 @@ export default function AppShell() {
                 onBlur={() => anim.ref.current?.stopAnimation()}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(r.to); } }}
               >
-                {isActive(r.to) && (
+                {isActive(r.to) && pillReady && (
                   <motion.span
                     className="rail-pill" aria-hidden="true"
                     layoutId="railPill" initial={false}
+                    // The circle's radius lives here, not in app.css: motion projection-corrects an
+                    // inline px border-radius across the layout slide, but a radius set on the CSS
+                    // class isn't corrected — mid-flight the pill distorts to a squircle and only
+                    // snaps back to a circle once the spring settles. 999px reads as a full circle
+                    // on both the 40px desktop pill and the 44px dock pill (both square boxes).
+                    style={{ borderRadius: 999 }}
                     transition={reduceMotion ? { duration: 0 } : PILL_SPRING}
                   />
                 )}

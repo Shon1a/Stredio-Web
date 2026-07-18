@@ -112,8 +112,8 @@
        the icon ONLY, with a fixed box that's identical on every row, so the rail expanding on
        hover never stretches it and motion just springs it up/down the column. Replaces the old
        3px left accent bar. */
-    .rail-pill{position:absolute;left:14px;top:4px;width:46px;height:40px;z-index:0;
-      border-radius:13px;background:rgba(255,255,255,.12)}
+    .rail-pill{position:absolute;left:17px;top:4px;width:40px;height:40px;z-index:0;
+      background:rgba(255,255,255,.12)}   /* circle radius is inline in AppShell — see its note */
     .rail-ic{flex:0 0 30px;width:30px;display:grid;place-items:center;position:relative;z-index:1;
       transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
     .rail-item:active .rail-ic{transform:scale(.86)}
@@ -2858,13 +2858,15 @@
       justify-content:center;gap:2px;flex:0 1 auto;min-height:0}
     /* the dock's clean 7 icons: Home · Search · TV · Anime · Movies · Categories · My Space. */
     .railbar .rail-item{display:flex;align-items:center;justify-content:center;
-      width:44px;height:44px;flex:0 0 auto;border-radius:14px;position:relative;
+      width:44px;height:44px;flex:0 0 auto;border-radius:50%;position:relative;
       color:var(--text-muted);cursor:pointer;
       transition:color .18s ease,background .18s ease;
       -webkit-tap-highlight-color:transparent}
     /* active highlight: the same sliding 'railPill' (see AppShell) — it fills the 44px cell as a
-       squircle and motion springs it sideways along the dock as tabs change, Instagram-style. */
-    .railbar .rail-pill{position:absolute;inset:0;z-index:0;border-radius:14px;
+       circle and motion springs it sideways along the dock as tabs change, Instagram-style. The
+       radius is set inline in AppShell, not here: motion only projection-corrects an inline px
+       border-radius during the slide, so a class radius flashes as a squircle mid-flight. */
+    .railbar .rail-pill{position:absolute;inset:0;z-index:0;
       background:rgba(255,255,255,.16)}
     .railbar .rail-ic{flex:none;width:auto;display:grid;place-items:center;position:relative;z-index:1;
       transition:transform .2s cubic-bezier(.34,1.56,.64,1)}

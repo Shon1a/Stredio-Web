@@ -23,6 +23,10 @@ export interface MediaItem {
   /** detail/hero: the synopsis */
   overview?: string;
   genre?: string;
+  /** hero: admin-set focal point (0–100%) so the full-bleed banner crops around
+   *  the subject instead of the fixed center/20%. Unset → the historical default. */
+  heroFocusX?: number;
+  heroFocusY?: number;
   [k: string]: unknown;
 }
 

@@ -4,7 +4,7 @@ import type { MediaItem } from '../lib/types';
 import { usePlayer } from '../stores/player';
 import { useT, useGenre } from '../i18n/i18n';
 import {
-  HERO_MAX, dedupeFeatured, heroBgUrl, heroFallbackGradient, heroThumbUrl,
+  HERO_MAX, dedupeFeatured, heroBgUrl, heroBgPosition, heroFallbackGradient, heroThumbUrl,
 } from '../lib/hero';
 
 /* Faithful port of the renderHero engine (assets/js/app.js:1043+).
@@ -118,7 +118,12 @@ export default function Hero({ items, onPlay, onAdd }: HeroProps) {
     const renderSlide = (it: MediaItem, dataI: number, key: string, o: { active?: boolean; clone?: boolean; defer?: boolean }) => {
       const bg = heroBgUrl(it);
       const eager = o.active && !o.defer;
-      const bgStyle: CSSProperties = { backgroundImage: eager ? `url('${bg}')` : heroFallbackGradient(it) };
+      // background-position carries the admin's focal point (defaults to center/20%);
+      // ensureSlideBg later swaps only backgroundImage, so this inline crop persists.
+      const bgStyle: CSSProperties = {
+        backgroundImage: eager ? `url('${bg}')` : heroFallbackGradient(it),
+        backgroundPosition: heroBgPosition(it),
+      };
       const dataBg = bg && !eager ? bg : undefined;
       return (
         <div key={key} className={`hero-slide${o.active ? ' active' : ''}${o.clone ? ' hero-clone' : ''}`} data-i={dataI} aria-hidden="true">

@@ -27,6 +27,20 @@ export function heroFallbackGradient(it: MediaItem): string {
   return `linear-gradient(135deg,hsl(0 0% ${14 + (h % 6)}%),hsl(0 0% ${6 + (h % 6)}%))`;
 }
 
+/** admin-set focal point → CSS background-position for the full-bleed backdrop.
+ *  The hero container is far wider than 16:9 on desktop (vertical crop) and
+ *  portrait on mobile (horizontal crop), so a per-title focal point keeps the
+ *  subject in frame on every screen. Defaults to the historical `50% 20%`
+ *  ("center 20%") crop when unset, so titles the admin hasn't touched are
+ *  pixel-identical to before. */
+export function heroBgPosition(it: MediaItem): string {
+  const axis = (n: unknown, d: number) => {
+    const v = typeof n === 'number' ? n : Number(n);
+    return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : d;
+  };
+  return `${axis(it.heroFocusX, 50)}% ${axis(it.heroFocusY, 20)}%`;
+}
+
 /** small thumbnail rendition for the hero dot strip */
 export function heroThumbUrl(it: MediaItem): string {
   const b = (it.backdrop || '').replace('/t/p/original/', '/t/p/w300/');
